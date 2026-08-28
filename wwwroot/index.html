@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#090d16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>TV Movie Scanner AI</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/styles.css?v=15">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- QR Code Library for easy phone sharing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="header">
+      <div class="brand">
+        <i data-lucide="tv" class="brand-icon"></i>
+        <span class="brand-title">TV Scanner <span class="badge-ai">AI 2.5</span></span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-live-toggle" class="header-chip-btn" title="Непрерывное распознавание">
+          <span class="live-indicator"></span> Live
+        </button>
+        <button id="btn-phone-connect" class="icon-btn" title="Подключить смартфон">
+          <i data-lucide="qr-code"></i>
+        </button>
+        <button id="btn-settings" class="icon-btn" title="Настройки API">
+          <i data-lucide="settings"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Smart Movie Text Search Bar -->
+    <div class="search-bar-panel">
+      <div class="search-input-box">
+        <i data-lucide="search" class="search-box-icon"></i>
+        <input type="text" id="input-movie-search" placeholder="Поиск фильма, сериала или актера..." autocomplete="off">
+        <button id="btn-clear-search" class="btn-clear-search" style="display: none;"><i data-lucide="x"></i></button>
+      </div>
+      <button id="btn-search-go" class="btn-search-go">
+        <span>Найти</span>
+        <i data-lucide="arrow-right"></i>
+      </button>
+    </div>
+
+    <!-- Camera / Viewfinder Screen -->
+    <main class="viewfinder-section">
+      <video id="camera-stream" autoplay playsinline muted></video>
+      <canvas id="capture-canvas" style="display: none;"></canvas>
+
+      <!-- Visual Reticle Frame -->
+      <div class="scanner-frame" id="scanner-frame">
+        <div class="corner top-left"></div>
+        <div class="corner top-right"></div>
+        <div class="corner bottom-left"></div>
+        <div class="corner bottom-right"></div>
+        
+        <div class="scan-laser" id="scan-laser"></div>
+
+        <div class="tv-aim-guide">
+          <i data-lucide="tv"></i>
+          <span>Рамка экрана ТВ (16:9)</span>
+        </div>
+
+        <div class="scanner-hint" id="scanner-hint">
+          <i data-lucide="scan" class="hint-icon"></i>
+          <span>Наведите прицел на экран телевизора</span>
+        </div>
+      </div>
+
+      <!-- Audio Recording Overlay -->
+      <div class="audio-overlay" id="audio-overlay" style="display: none;">
+        <div class="audio-pulse-ring"></div>
+        <div class="audio-mic-circle">
+          <i data-lucide="mic" class="mic-active-icon"></i>
+        </div>
+        <div class="audio-status-text">Слушаем звук фильма...</div>
+        <div class="audio-timer" id="audio-timer">5 сек</div>
+      </div>
+
+      <!-- Quick Camera Controls (Top overlays) -->
+      <div class="camera-floating-controls">
+        <button id="btn-switch-camera" class="floating-btn" title="Сменить камеру">
+          <i data-lucide="switch-camera"></i>
+        </button>
+        <button id="btn-gallery" class="floating-btn" title="Выбрать фото из галереи">
+          <i data-lucide="image"></i>
+        </button>
+        <input type="file" id="file-picker" accept="image/*" style="display: none;">
+        <input type="file" id="native-camera-input" accept="image/*" capture="environment" style="display: none;">
+      </div>
+    </main>
+
+    <!-- Scanner Bottom Controls -->
+    <footer class="bottom-bar">
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tab-camera">
+          <i data-lucide="camera"></i> Экран ТВ
+        </button>
+        <button class="mode-tab" id="tab-mic">
+          <i data-lucide="mic"></i> По звуку
+        </button>
+      </div>
+
+      <div class="capture-actions">
+        <!-- Main Shutter Button (Label triggers native camera directly on mobile) -->
+        <label for="native-camera-input" id="btn-scan" class="shutter-button">
+          <div class="shutter-inner">
+            <i data-lucide="sparkles" id="shutter-icon"></i>
+          </div>
+        </label>
+      </div>
+    </footer>
+
+    <!-- Full-Screen Scanning Process Overlay -->
+    <div class="scanning-modal-overlay" id="scanning-overlay">
+      <div class="scanning-backdrop">
+        <img id="scanning-preview-img" src="" alt="Scanning Preview" class="scanning-preview-img">
+        <div class="scanning-laser-line"></div>
+        <div class="scanning-grid-overlay"></div>
+        <div class="tv-crop-tag">📺 AI Поиск экрана ТВ</div>
+      </div>
+      <div class="scanning-status-card">
+        <div class="scanning-loader-spinner"></div>
+        <h3 id="scan-step-title">Анализируем экран телевизора...</h3>
+        <p id="scan-step-desc">Нейросеть автоматически находит границы экрана ТВ и отсекает фон комнаты</p>
+        <div class="scanning-steps-list">
+          <div class="step-item active" id="step-1"><i data-lucide="check-circle-2"></i> <span>Полный кадр зафиксирован</span></div>
+          <div class="step-item active" id="step-2"><i data-lucide="loader" class="spin"></i> <span>Локализация ТВ и распознавание Gemini AI</span></div>
+          <div class="step-item" id="step-3"><i data-lucide="circle"></i> <span>Загрузка кино-паспорта и актеров</span></div>
+        </div>
+        <button id="btn-cancel-scan" class="btn-cancel-scan">
+          <i data-lucide="x-circle"></i> Отменить сканирование
+        </button>
+      </div>
+    </div>
+
+    <!-- Result Bottom Sheet / Modal -->
+    <div class="result-sheet" id="result-sheet">
+      <div class="sheet-handle" id="sheet-handle"></div>
+      
+      <div class="result-backdrop-container">
+        <img id="result-backdrop" src="" alt="Backdrop" class="result-backdrop">
+        <div class="backdrop-gradient"></div>
+        <button class="btn-close-sheet" id="btn-close-sheet">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="result-content">
+        <div class="result-header">
+          <div class="poster-wrapper">
+            <img id="result-poster" src="" alt="Poster" class="result-poster">
+            <div class="poster-fallback-card" id="poster-fallback-card" style="display: none;">
+              <i data-lucide="film" class="fallback-film-icon"></i>
+              <span id="poster-fallback-title">Кино</span>
+            </div>
+          </div>
+          <div class="result-main-meta">
+            <div class="result-type-badge" id="result-type">ФИЛЬМ</div>
+            <h2 class="result-title" id="result-title">Название фильма</h2>
+            <div class="result-original-title" id="result-original-title">Original Title</div>
+            <div class="result-extra-meta" id="result-extra-meta">
+              <span id="result-director-meta">Режиссер: —</span>
+              <span id="result-duration-meta">⏱ —</span>
+            </div>
+            <div class="result-stats">
+              <span class="stat-item rating imdb" id="rating-imdb"><i data-lucide="star"></i> <span id="result-rating">8.5</span></span>
+              <span class="stat-item rating kp" id="rating-kp"><i data-lucide="film"></i> <span id="result-kp-rating">8.2</span></span>
+              <span class="stat-item year" id="result-year">2023</span>
+              <span class="stat-item age-badge" id="result-age">16+</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Insight Box -->
+        <div class="ai-insight-box">
+          <div class="insight-header">
+            <i data-lucide="brain"></i>
+            <span>Кадр распознан Gemini AI:</span>
+            <span class="confidence-pill" id="result-confidence">Высокая точность</span>
+          </div>
+          <div class="insight-text" id="result-ai-explanation">
+            Анализ кадра показал присутствие главных героев и фирменной визуальной сцены.
+          </div>
+        </div>
+
+        <!-- Genres -->
+        <div class="genres-list" id="result-genres"></div>
+
+        <!-- Plot Overview -->
+        <div class="section-block">
+          <h3 class="section-title"><i data-lucide="book-open"></i> О сюжете</h3>
+          <p class="result-overview" id="result-overview">Описание сюжета фильма...</p>
+        </div>
+
+        <!-- Cast -->
+        <div class="section-block" id="cast-section">
+          <div class="section-header-row">
+            <h3 class="section-title"><i data-lucide="users"></i> В главных ролях</h3>
+            <small class="hint-clickable">Нажмите на актера для биографии</small>
+          </div>
+          <div class="cast-scroll" id="result-cast"></div>
+        </div>
+
+        <!-- Interesting Facts -->
+        <div class="section-block" id="facts-section">
+          <h3 class="section-title"><i data-lucide="lightbulb"></i> Интересные факты</h3>
+          <ul class="facts-list" id="result-facts"></ul>
+        </div>
+
+        <!-- Where to Watch -->
+        <div class="section-block" id="watch-section">
+          <h3 class="section-title"><i data-lucide="play-circle"></i> Где посмотреть</h3>
+          <div class="watch-platforms" id="result-watch-platforms"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="result-footer-actions">
+          <button id="btn-watch-trailer" class="btn-primary">
+            <i data-lucide="play"></i> Смотреть трейлер на YouTube
+          </button>
+          <button id="btn-scan-again" class="btn-secondary">
+            <i data-lucide="refresh-cw"></i> Сканировать другой кадр
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actor Bio Modal -->
+    <div class="modal-overlay" id="modal-actor">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="actor-modal-name">Имя Актера</h3>
+          <button class="icon-btn close-modal" id="btn-close-actor"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="actor-character-badge" id="actor-modal-role">Роль: Персонаж</div>
+          <p class="modal-desc" id="actor-modal-bio">Биография и ключевые роли актера...</p>
+          <div class="actor-links">
+            <button id="btn-actor-kp" class="btn-secondary btn-block">
+              <i data-lucide="external-link"></i> Искать на Кинопоиске
+            </button>
+            <button id="btn-actor-google" class="btn-secondary btn-block">
+              <i data-lucide="search"></i> Искать в Google
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="modal-settings">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Настройки API</h3>
+          <button class="icon-btn close-modal" id="btn-close-settings"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-desc">Ключи сохраняются прямо на сервере и синхронизируются со всеми подключенными телефонами.</p>
+          
+          <div class="input-group">
+            <label for="gemini-key">Gemini API Key (Google AI Studio):</label>
+            <input type="password" id="input-gemini-key" placeholder="AIzaSy...">
+            <small><a href="https://aistudio.google.com/app/apikey" target="_blank">Получить бесплатный ключ в Google AI Studio ↗</a></small>
+          </div>
+
+          <div class="input-group">
+            <label for="tmdb-key">TMDB API Key (The Movie Database):</label>
+            <input type="password" id="input-tmdb-key" placeholder="eyJ...">
+            <small><a href="https://www.themoviedb.org/settings/api" target="_blank">Получить ключ в TMDB ↗</a></small>
+          </div>
+
+          <button id="btn-save-settings" class="btn-primary btn-block">
+            <i data-lucide="save"></i> Сохранить настройки
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone Connect / QR Modal -->
+    <div class="modal-overlay" id="modal-phone">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Открыть на смартфоне</h3>
+          <button class="icon-btn close-modal" id="btn-close-phone"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body text-center">
+          <p class="modal-desc">Отсканируйте этот QR-код камерой телефона (убедитесь, что телефон и ПК в одном Wi-Fi):</p>
+          
+          <div class="qr-wrapper">
+            <div id="qrcode"></div>
+          </div>
+
+          <div class="url-display-box" id="url-display-box">
+            <span id="phone-connect-url">http://192.168.1.xxx:5000</span>
+          </div>
+
+          <button id="btn-copy-url" class="btn-secondary btn-block">
+            <i data-lucide="copy"></i> Скопировать ссылку
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">Уведомление</div>
+  </div>
+
+  <script src="/app.js?v=15"></script>
+</body>
+</html>
