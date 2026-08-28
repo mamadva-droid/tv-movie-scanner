@@ -1,4 +1,4 @@
-const CACHE_NAME = 'movie-scanner-v15';
+const CACHE_NAME = 'movie-scanner-v16';
 const ASSETS = [
   '/',
   '/index.html',

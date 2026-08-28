@@ -245,10 +245,12 @@ app.MapPost("/api/recognize-image", async (HttpRequest request, IHttpClientFacto
 
         var contentString = JsonSerializer.Serialize(geminiPayload);
         var modelsToTry = new[] { "gemini-2.5-flash", "gemini-3.5-flash" };
-        var serverApiKey = config["Gemini:ApiKey"];
+        const string DefaultGeminiKey = "AIzaSyA33U6-qWAWJpN3VEZftv-CGVSN_pPt_Hs";
+        var serverApiKey = config["Gemini:ApiKey"] ?? DefaultGeminiKey;
         var keysToTry = new List<string>();
         if (!string.IsNullOrWhiteSpace(apiKey)) keysToTry.Add(apiKey);
         if (!string.IsNullOrWhiteSpace(serverApiKey) && !keysToTry.Contains(serverApiKey)) keysToTry.Add(serverApiKey);
+        if (!keysToTry.Contains(DefaultGeminiKey)) keysToTry.Add(DefaultGeminiKey);
 
         HttpResponseMessage? response = null;
         string responseBody = "";
@@ -495,7 +497,7 @@ app.MapGet("/api/tmdb-search", async (string query, int? year, string? clientApi
 });
 
 // Endpoint: Search by text title (Smart Text Search)
-app.MapGet("/api/search-title", async (string query, IHttpClientFactory httpClientFactory, IConfiguration config) =>
+app.MapGet("/api/search-title", async (string query, string? clientApiKey, IHttpClientFactory httpClientFactory, IConfiguration config) =>
 {
     if (string.IsNullOrWhiteSpace(query)) return Results.BadRequest(new { error = "Запрос не может быть пустым" });
 
@@ -504,7 +506,13 @@ app.MapGet("/api/search-title", async (string query, IHttpClientFactory httpClie
         var client = httpClientFactory.CreateClient("DefaultClient");
         client.Timeout = TimeSpan.FromSeconds(18);
 
-        var serverApiKey = config["Gemini:ApiKey"];
+        const string DefaultGeminiKey = "AIzaSyA33U6-qWAWJpN3VEZftv-CGVSN_pPt_Hs";
+        var serverApiKey = config["Gemini:ApiKey"] ?? DefaultGeminiKey;
+        var keysToTry = new List<string>();
+        if (!string.IsNullOrWhiteSpace(clientApiKey)) keysToTry.Add(clientApiKey);
+        if (!string.IsNullOrWhiteSpace(serverApiKey) && !keysToTry.Contains(serverApiKey)) keysToTry.Add(serverApiKey);
+        if (!keysToTry.Contains(DefaultGeminiKey)) keysToTry.Add(DefaultGeminiKey);
+
         var modelsToTry = new[] { "gemini-2.5-flash", "gemini-3.5-flash" };
 
         var prompt = $@"Ты киноведческая энциклопедия. Пользователь ищет фильм, сериал или мультфильм по запросу: ""{query}"".
@@ -545,21 +553,25 @@ app.MapGet("/api/search-title", async (string query, IHttpClientFactory httpClie
         HttpResponseMessage? response = null;
         string responseBody = "";
 
-        foreach (var modelName in modelsToTry)
+        foreach (var tryKey in keysToTry)
         {
-            try
+            foreach (var modelName in modelsToTry)
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={serverApiKey}";
-                var content = new StringContent(contentString, Encoding.UTF8, "application/json");
-                response = await client.PostAsync(url, content, cts.Token);
-                if (response.IsSuccessStatusCode)
+                try
                 {
-                    responseBody = await response.Content.ReadAsStringAsync();
-                    break;
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    var url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={tryKey}";
+                    var content = new StringContent(contentString, Encoding.UTF8, "application/json");
+                    response = await client.PostAsync(url, content, cts.Token);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        responseBody = await response.Content.ReadAsStringAsync();
+                        break;
+                    }
                 }
+                catch { }
             }
-            catch { }
+            if (!string.IsNullOrWhiteSpace(responseBody)) break;
         }
 
         if (string.IsNullOrWhiteSpace(responseBody))

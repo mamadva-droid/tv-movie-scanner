@@ -485,8 +485,9 @@ async function executeTextSearch(query) {
   try {
     setScanningUI(true, null, `Ищем: ${query}`, 'Поиск фильма, постеров и актеров в кино-базе...', 2);
 
+    const geminiKey = localStorage.getItem('gemini_api_key') || '';
     // Call text search endpoint
-    const response = await fetch(`/api/search-title?query=${encodeURIComponent(query)}`, {
+    const response = await fetch(`/api/search-title?query=${encodeURIComponent(query)}&clientApiKey=${encodeURIComponent(geminiKey)}`, {
       signal: currentAbortController.signal
     });
 
