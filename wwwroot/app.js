@@ -734,9 +734,12 @@ function displayResult(gemini, tmdb, capturedFrame) {
     if (resultOverview) resultOverview.textContent = gemini.overview || (isTmdbFound && tmdb.overview ? tmdb.overview : 'Сюжетное описание фильма формируется...');
 
     // Poster & Backdrop Handling
-    if (isTmdbFound && tmdb.posterPath) {
+    const activePoster = (isTmdbFound && tmdb.posterPath) ? tmdb.posterPath : (gemini && gemini.posterPath ? gemini.posterPath : null);
+    const activeBackdrop = (isTmdbFound && tmdb.backdropPath) ? tmdb.backdropPath : (gemini && gemini.backdropPath ? gemini.backdropPath : null);
+
+    if (activePoster) {
       if (resultPoster) {
-        resultPoster.src = tmdb.posterPath;
+        resultPoster.src = activePoster;
         resultPoster.style.display = 'block';
         resultPoster.onerror = () => {
           resultPoster.style.display = 'none';
@@ -752,12 +755,12 @@ function displayResult(gemini, tmdb, capturedFrame) {
       }
     }
 
-    if (isTmdbFound && tmdb.backdropPath) {
-      if (resultBackdrop) resultBackdrop.src = tmdb.backdropPath;
+    if (activeBackdrop) {
+      if (resultBackdrop) resultBackdrop.src = activeBackdrop;
     } else if (capturedFrame) {
       if (resultBackdrop) resultBackdrop.src = capturedFrame;
-    } else if (resultPoster && resultPoster.src) {
-      if (resultBackdrop) resultBackdrop.src = resultPoster.src;
+    } else if (activePoster) {
+      if (resultBackdrop) resultBackdrop.src = activePoster;
     }
 
     // Genres
