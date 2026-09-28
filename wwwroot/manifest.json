@@ -1,17 +1,23 @@
 {
-  "name": "TV Movie Scanner",
-  "short_name": "MovieScanner",
-  "description": "Сканер экрана ТВ и распознавание фильмов и сериалов",
+  "name": "КиноГид PRO — Энциклопедия фильмов",
+  "short_name": "КиноГид",
+  "description": "Поиск фильмов, сериалов, подборок, актеров, трейлеров и кассовых сборов",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#6366f1",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%236366f1'/><path d='M140 180h232v152H140z' fill='%230f172a'/><path d='M210 210l110 50-110 50z' fill='%236366f1'/></svg>",
-      "sizes": "192x192 512x512",
-      "type": "image/svg+xml",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -8,7 +8,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>КиноГид — Полноценная кино-энциклопедия</title>
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/styles.css?v=35">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="КиноГид">
+  <meta name="application-name" content="КиноГид">
+  <link rel="stylesheet" href="/styles.css?v=36">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -25,6 +30,12 @@
         </div>
       </div>
       <div class="header-nav">
+        <button id="btn-install-app" class="nav-icon-btn btn-install-glow" title="Установить иконку на телефон" style="display: none;">
+          <i data-lucide="download"></i>
+        </button>
+        <button id="btn-share-app" class="nav-icon-btn" title="Поделиться приложением">
+          <i data-lucide="share-2"></i>
+        </button>
         <button id="btn-open-favorites" class="nav-icon-btn" title="Избранные фильмы">
           <i data-lucide="bookmark"></i>
           <span id="favorites-counter" class="nav-counter" style="display: none;">0</span>
@@ -373,11 +384,73 @@
       </div>
     </div>
 
+    <!-- Modal: Share & Install App -->
+    <div class="modal-overlay" id="modal-share-app">
+      <div class="modal-window modal-share-window">
+        <div class="modal-header">
+          <h3><i data-lucide="smartphone"></i> Установка иконки на телефон</h3>
+          <button class="btn-close-modal" id="btn-close-share"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="install-card-highlight">
+            <img src="/icon-192.png" alt="КиноГид" class="install-app-logo">
+            <div class="install-app-info">
+              <h4>КиноГид PRO</h4>
+              <p>Работает как настоящее приложение на экране вашего телефона</p>
+            </div>
+          </div>
+
+          <!-- Instant Install Button (Android / Chrome / PC) -->
+          <button id="btn-prompt-install" class="btn-primary-full" style="display: none; margin-bottom: 16px;">
+            <i data-lucide="download"></i> Установить на главный экран
+          </button>
+
+          <!-- Instruction Tabs -->
+          <div class="install-instructions">
+            <div class="instruction-box">
+              <h5>🍏 Для iPhone (iOS / Safari):</h5>
+              <ol>
+                <li>Откройте ссылку сайта в браузере <strong>Safari</strong>.</li>
+                <li>Нажмите внизу кнопку <strong>«Поделиться»</strong> <i data-lucide="share" style="width:14px;height:14px;vertical-align:middle;"></i> (квадрат со стрелкой вверх).</li>
+                <li>В появившемся меню выберите <strong>«На экран Домой»</strong> ➕.</li>
+                <li>Нажмите <strong>«Добавить»</strong> в правом верхнем углу — на экране появится иконка <strong>КиноГид</strong>!</li>
+              </ol>
+            </div>
+
+            <div class="instruction-box" style="margin-top: 12px;">
+              <h5>🤖 Для Android (Chrome / Яндекс):</h5>
+              <ol>
+                <li>Откройте ссылку в <strong>Chrome</strong>.</li>
+                <li>Нажмите кнопку <strong>«Установить»</strong> или меню (три точки <strong>⋮</strong>).</li>
+                <li>Выберите <strong>«Установить приложение»</strong> или <strong>«Добавить на главный экран»</strong>.</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Link Share Action -->
+          <div class="share-link-group" style="margin-top: 16px;">
+            <label>Ссылка для отправки друзьям:</label>
+            <div class="share-input-row">
+              <input type="text" id="share-link-input" readonly value="">
+              <button id="btn-copy-share-link" class="btn-copy-link" title="Скопировать">
+                <i data-lucide="copy"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-share-native" class="btn-primary-full">
+            <i data-lucide="send"></i> Отправить ссылку в мессенджер
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast Popup Notification -->
     <div class="toast-popup" id="toast-popup">Уведомление</div>
 
   </div>
 
-  <script src="/app.js?v=35"></script>
+  <script src="/app.js?v=36"></script>
 </body>
 </html>

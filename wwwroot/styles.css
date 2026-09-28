@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg-dark: #090d16;
   --bg-surface: #111827;
   --bg-surface-elevated: #1e293b;
@@ -1459,3 +1459,123 @@ body {
   transform: translateX(-50%) translateY(0);
   opacity: 1;
 }
+
+/* 📲 Install & Share App Styles */
+.btn-install-glow {
+  background: linear-gradient(135deg, #6366f1, #ec4899) !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+  animation: pulseInstall 2s infinite;
+}
+
+@keyframes pulseInstall {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(99, 102, 241, 0.4); }
+  50% { transform: scale(1.08); box-shadow: 0 0 18px rgba(236, 72, 153, 0.7); }
+}
+
+.modal-share-window {
+  max-width: 460px;
+}
+
+.install-card-highlight {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.install-app-logo {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.install-app-info h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+}
+
+.install-app-info p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.install-instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.instruction-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.instruction-box h5 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.instruction-box ol {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.instruction-box ol li {
+  margin-bottom: 4px;
+}
+
+.share-link-group label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.share-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.share-input-row input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.btn-copy-link {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: white;
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+

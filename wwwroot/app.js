@@ -116,6 +116,17 @@ const actorModalPhoto = document.getElementById('actor-modal-photo');
 const btnActorKp = document.getElementById('btn-actor-kp');
 const btnActorGoogle = document.getElementById('btn-actor-google');
 
+// 📲 PWA & Share App Elements
+let deferredInstallPrompt = null;
+const btnInstallApp = document.getElementById('btn-install-app');
+const btnShareApp = document.getElementById('btn-share-app');
+const modalShareApp = document.getElementById('modal-share-app');
+const btnCloseShare = document.getElementById('btn-close-share');
+const btnPromptInstall = document.getElementById('btn-prompt-install');
+const shareLinkInput = document.getElementById('share-link-input');
+const btnCopyShareLink = document.getElementById('btn-copy-share-link');
+const btnShareNative = document.getElementById('btn-share-native');
+
 const toastPopup = document.getElementById('toast-popup');
 
 // Initialize Application
@@ -123,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initIcons();
   initEventListeners();
   initVoiceRecognition();
+  initPwaInstall();
   loadSavedSettings();
   updateFavoritesCounter();
 
@@ -382,8 +394,42 @@ function initEventListeners() {
     btnCloseActor.addEventListener('click', () => modalActor.classList.remove('open'));
   }
 
+  // Share & Install App Modal
+  if (btnShareApp) {
+    btnShareApp.addEventListener('click', openShareAppModal);
+  }
+  if (btnCloseShare && modalShareApp) {
+    btnCloseShare.addEventListener('click', () => modalShareApp.classList.remove('open'));
+  }
+  if (btnCopyShareLink && shareLinkInput) {
+    btnCopyShareLink.addEventListener('click', () => {
+      navigator.clipboard.writeText(shareLinkInput.value).then(() => {
+        showToast('Ссылка скопирована в буфер обмена! 📋');
+      }).catch(() => {
+        shareLinkInput.select();
+        document.execCommand('copy');
+        showToast('Ссылка скопирована! 📋');
+      });
+    });
+  }
+  if (btnShareNative) {
+    btnShareNative.addEventListener('click', () => {
+      const shareUrl = window.location.origin || window.location.href;
+      if (navigator.share) {
+        navigator.share({
+          title: 'КиноГид PRO — Энциклопедия фильмов',
+          text: 'Удобное приложение для поиска фильмов, трейлеров и подборок голосом:',
+          url: shareUrl
+        }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(shareUrl);
+        showToast('Ссылка скопирована! Отправьте её друзьям.');
+      }
+    });
+  }
+
   // Backdrop click to close modals
-  [modalFavorites, modalHistory, modalSettings, modalActor].forEach(modal => {
+  [modalFavorites, modalHistory, modalSettings, modalActor, modalShareApp].forEach(modal => {
     if (modal) {
       modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.remove('open');
@@ -394,7 +440,7 @@ function initEventListeners() {
   // Escape key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      [modalFavorites, modalHistory, modalSettings, modalActor, modalLightbox].forEach(m => {
+      [modalFavorites, modalHistory, modalSettings, modalActor, modalShareApp, modalLightbox].forEach(m => {
         if (m) m.classList.remove('open');
       });
     }
@@ -1033,3 +1079,55 @@ async function saveSettings() {
   if (modalSettings) modalSettings.classList.remove('open');
   showToast('Настройки успешно сохранены!');
 }
+
+// 📲 PWA Installation & Sharing Logic
+function initPwaInstall() {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent default mini-infobar
+    e.preventDefault();
+    deferredInstallPrompt = e;
+
+    // Show Install Buttons
+    if (btnInstallApp) btnInstallApp.style.display = 'flex';
+    if (btnPromptInstall) btnPromptInstall.style.display = 'flex';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (btnInstallApp) btnInstallApp.style.display = 'none';
+    if (btnPromptInstall) btnPromptInstall.style.display = 'none';
+    showToast('Приложение КиноГид успешно установлено! 🎉');
+  });
+
+  const triggerInstall = async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        deferredInstallPrompt = null;
+        if (btnInstallApp) btnInstallApp.style.display = 'none';
+        if (btnPromptInstall) btnPromptInstall.style.display = 'none';
+        if (modalShareApp) modalShareApp.classList.remove('open');
+      }
+    } else {
+      openShareAppModal();
+    }
+  };
+
+  if (btnInstallApp) btnInstallApp.addEventListener('click', triggerInstall);
+  if (btnPromptInstall) btnPromptInstall.addEventListener('click', triggerInstall);
+}
+
+function openShareAppModal() {
+  if (!modalShareApp) return;
+  const currentUrl = window.location.origin || window.location.href;
+  if (shareLinkInput) {
+    shareLinkInput.value = currentUrl;
+  }
+  if (btnPromptInstall) {
+    btnPromptInstall.style.display = deferredInstallPrompt ? 'flex' : 'none';
+  }
+  modalShareApp.classList.add('open');
+  initIcons();
+}
+
