@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#090d16">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>КиноГид AI — Голосовой поиск фильмов</title>
+  <title>КиноГид — Поиск фильмов и сериалов</title>
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/styles.css?v=20">
+  <link rel="stylesheet" href="/styles.css?v=25">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -20,8 +20,8 @@
       <div class="brand-logo" id="btn-home">
         <i data-lucide="clapperboard" class="brand-icon"></i>
         <div class="brand-texts">
-          <span class="brand-name">КиноГид <span class="brand-ai">AI</span></span>
-          <span class="brand-tagline">Голосовая кино-энциклопедия</span>
+          <span class="brand-name">КиноГид <span class="brand-ai">PRO</span></span>
+          <span class="brand-tagline">Поиск по названию, актерам и голосу</span>
         </div>
       </div>
       <div class="header-nav">
@@ -44,33 +44,25 @@
       <!-- Hero Search Section -->
       <section class="hero-search-section" id="hero-section">
         
-        <div class="hero-badge">
-          <i data-lucide="sparkles"></i>
-          <span>Умный поиск по названию, актерам и сюжету</span>
-        </div>
+        <h1 class="hero-title">Найдите любой фильм или сериал</h1>
+        <p class="hero-subtitle">Введите название текстом или нажмите микрофон для голосового поиска</p>
 
-        <h1 class="hero-title">Какой фильм хотите найти?</h1>
-        <p class="hero-subtitle">Нажмите микрофон и скажите, например: <em>«Садовник с Ван Даммом»</em> или введите название</p>
-
-        <!-- Voice Big Mic Button -->
-        <div class="voice-mic-container">
-          <button id="btn-voice-search" class="voice-mic-btn" title="Нажмите для голосового поиска">
-            <div class="mic-pulse-ring"></div>
-            <div class="mic-pulse-ring ring-2"></div>
-            <div class="mic-icon-circle">
-              <i data-lucide="mic" id="voice-icon"></i>
-            </div>
-          </button>
-          <span class="voice-status-text" id="voice-status-text">Нажмите микрофон и говорите</span>
-        </div>
-
-        <!-- Search Input Bar -->
+        <!-- Main Unified Search Bar (Text + Voice + Submit) -->
         <div class="search-form-wrapper">
           <div class="search-input-container">
             <i data-lucide="search" class="search-prefix-icon"></i>
-            <input type="text" id="movie-search-input" placeholder="Название фильма, актер или описание сюжета..." autocomplete="off">
-            <button id="btn-clear-input" class="btn-clear-input" style="display: none;" title="Очистить">
+            <input 
+              type="text" 
+              id="movie-search-input" 
+              placeholder="Например: Садовник с Ван Даммом, Интерстеллар, Матрица..." 
+              autocomplete="off"
+              autofocus
+            >
+            <button id="btn-clear-input" class="btn-input-action" style="display: none;" title="Очистить">
               <i data-lucide="x"></i>
+            </button>
+            <button id="btn-voice-search" class="btn-input-action btn-voice-inline" title="Голосовой ввод">
+              <i data-lucide="mic" id="voice-icon"></i>
             </button>
           </div>
           <button id="btn-submit-search" class="btn-submit-search">
@@ -79,11 +71,17 @@
           </button>
         </div>
 
+        <!-- Voice Status Line -->
+        <div class="voice-status-line" id="voice-status-text" style="display: none;">
+          <span class="pulse-dot"></span>
+          <span>Слушаю вас... Говорите название фильма</span>
+        </div>
+
         <!-- Quick Query Suggestion Chips -->
         <div class="suggestions-wrapper">
-          <span class="suggestions-label">Попробуйте:</span>
+          <span class="suggestions-label">Популярные запросы:</span>
           <div class="chips-scroll">
-            <button class="chip-item" data-query="Садовник">🎙️ Садовник с Ван Даммом</button>
+            <button class="chip-item" data-query="Садовник">🎬 Садовник с Ван Даммом</button>
             <button class="chip-item" data-query="Интерстеллар">🚀 Интерстеллар</button>
             <button class="chip-item" data-query="Матрица">🕶️ Матрица</button>
             <button class="chip-item" data-query="Джентльмены">🏆 Джентльмены</button>
@@ -101,7 +99,7 @@
           <i data-lucide="film" class="loader-film-icon"></i>
         </div>
         <h3 id="loading-title">Ищем фильм в базе Кинопоиска...</h3>
-        <p id="loading-desc">Загружаем постеры, рейтинги, сюжет и актерский состав</p>
+        <p id="loading-desc">Загружаем официальный постер, рейтинги, сюжет и список актеров</p>
       </section>
 
       <!-- Movie Card Details Section -->
@@ -185,7 +183,7 @@
           <p class="movie-overview-text" id="movie-overview">Описание сюжета фильма...</p>
         </div>
 
-        <!-- Cast & Actors Carousel -->
+        <!-- Cast & Actors -->
         <div class="movie-card-panel" id="actors-panel">
           <h2 class="panel-section-title"><i data-lucide="users"></i> В главных ролях</h2>
           <div class="actors-grid" id="movie-cast-grid">
@@ -263,9 +261,9 @@
             <small>Используется для получения официальных постеров, сюжетов и фото актеров.</small>
           </div>
           <div class="form-group">
-            <label>Google Gemini API Key (для умного поиска):</label>
+            <label>Google Gemini API Key:</label>
             <input type="text" id="input-gemini-key" placeholder="AIzaSy...">
-            <small>Используется для поиска по смутному описанию сюжета.</small>
+            <small>Используется для сложного поиска по описанию сюжета.</small>
           </div>
         </div>
         <div class="modal-footer">
@@ -302,6 +300,6 @@
 
   </div>
 
-  <script src="/app.js?v=20"></script>
+  <script src="/app.js?v=25"></script>
 </body>
 </html>

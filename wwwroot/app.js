@@ -1,4 +1,4 @@
-﻿// КиноГид AI — Voice & Text Movie Guide Application
+// КиноГид AI — Voice & Text Movie Guide Application
 
 let currentMovieData = null;
 let speechRecognition = null;
@@ -165,6 +165,7 @@ function startVoiceListening() {
     return;
   }
   try {
+    if (voiceStatusText) voiceStatusText.style.display = 'flex';
     speechRecognition.start();
   } catch (e) {
     speechRecognition.stop();
@@ -174,7 +175,7 @@ function startVoiceListening() {
 function stopVoiceListening() {
   isListening = false;
   if (btnVoiceSearch) btnVoiceSearch.classList.remove('listening');
-  if (voiceStatusText) voiceStatusText.textContent = 'Нажмите микрофон и говорите';
+  if (voiceStatusText) voiceStatusText.style.display = 'none';
 }
 
 // Event Listeners
