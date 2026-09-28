@@ -89,15 +89,16 @@
         </div>
 
         <!-- Quick Query Suggestion Chips -->
-        <div class="suggestions-wrapper">
-          <span class="suggestions-label">Популярные темы и фильмы:</span>
-          <div class="chips-scroll">
-            <button class="chip-item" data-query="фильмы про крыс">🐀 Про крыс</button>
-            <button class="chip-item" data-query="лучшие боевики">🔥 Лучшие боевики</button>
-            <button class="chip-item" data-query="Садовник">🎬 Садовник с Ван Даммом</button>
-            <button class="chip-item" data-query="Интерстеллар">🚀 Интерстеллар</button>
-            <button class="chip-item" data-query="комедии с Джимом Керри">🎭 Комедии с Керри</button>
-            <button class="chip-item" data-query="триллеры про космос">🌌 Триллеры про космос</button>
+        <div class="suggestions-wrapper" id="suggestions-wrapper">
+          <div class="suggestions-header">
+            <span class="suggestions-label">Популярные темы и идеи:</span>
+            <button id="btn-refresh-chips" class="btn-refresh-chips" title="Показать другие темы">
+              <i data-lucide="shuffle"></i>
+              <span>Другие темы</span>
+            </button>
+          </div>
+          <div class="chips-scroll" id="chips-container">
+            <!-- Dynamically populated from rotating topics pool -->
           </div>
         </div>
 
@@ -206,16 +207,42 @@
           </div>
         </div>
 
-        <!-- 🎥 POINT 8: Embedded Trailer Player Panel -->
+        <!-- 🎥 POINT 8: Trailer Player & Video Panel -->
         <div class="movie-card-panel" id="trailer-panel">
-          <h2 class="panel-section-title"><i data-lucide="film"></i> Официальный трейлер</h2>
+          <h2 class="panel-section-title"><i data-lucide="film"></i> Трейлер к фильму</h2>
           <div class="trailer-wrapper" id="trailer-wrapper">
-            <div class="trailer-embed-container" id="trailer-embed-container">
+            
+            <!-- Embedded iframe (Used when direct video embed is available) -->
+            <div class="trailer-embed-container" id="trailer-embed-container" style="display: none;">
               <iframe id="trailer-iframe" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             </div>
-            <button id="btn-open-yt-external" class="btn-trailer-external">
-              <i data-lucide="youtube"></i> Открыть трейлер на YouTube
-            </button>
+
+            <!-- Visual Showcase Player Card (Always works reliably) -->
+            <div class="trailer-showcase-card" id="trailer-showcase-card">
+              <img id="trailer-preview-backdrop" src="" alt="Trailer" class="trailer-preview-img">
+              <div class="trailer-showcase-overlay">
+                <div class="trailer-play-button" id="btn-showcase-play">
+                  <i data-lucide="play"></i>
+                </div>
+                <div class="trailer-showcase-text">
+                  <h4 id="trailer-video-title">Официальный трейлер</h4>
+                  <p>Нажмите для мгновенного просмотра в HD качестве</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Video Platforms Action Buttons -->
+            <div class="trailer-buttons-row">
+              <button id="btn-open-yt-external" class="btn-trailer-btn btn-yt">
+                <i data-lucide="youtube"></i> <span>Смотреть на YouTube</span>
+              </button>
+              <button id="btn-open-kp-trailer" class="btn-trailer-btn btn-kp">
+                <i data-lucide="clapperboard"></i> <span>На Кинопоиске</span>
+              </button>
+              <button id="btn-open-vk-trailer" class="btn-trailer-btn btn-vk">
+                <i data-lucide="play-circle"></i> <span>В VK Видео</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -297,10 +324,17 @@
     </main>
 
     <!-- Modal: Lightbox for Fullscreen Stills -->
-    <div class="modal-overlay" id="modal-lightbox">
-      <div class="lightbox-container">
-        <button class="btn-close-lightbox" id="btn-close-lightbox"><i data-lucide="x"></i></button>
-        <img src="" alt="Still Fullscreen" id="lightbox-img" class="lightbox-img">
+    <div class="modal-overlay modal-lightbox-overlay" id="modal-lightbox">
+      <div class="lightbox-wrapper" id="lightbox-wrapper">
+        <div class="lightbox-topbar">
+          <span class="lightbox-counter" id="lightbox-counter">Кадр 1 из 1</span>
+          <button class="btn-close-lightbox" id="btn-close-lightbox" title="Закрыть (Esc)"><i data-lucide="x"></i></button>
+        </div>
+        <button class="lightbox-nav-btn prev" id="btn-lightbox-prev" title="Предыдущий кадр (влево)"><i data-lucide="chevron-left"></i></button>
+        <button class="lightbox-nav-btn next" id="btn-lightbox-next" title="Следующий кадр (вправо)"><i data-lucide="chevron-right"></i></button>
+        <div class="lightbox-stage" id="lightbox-stage">
+          <img src="" alt="Кадр из фильма" id="lightbox-img" class="lightbox-img">
+        </div>
       </div>
     </div>
 

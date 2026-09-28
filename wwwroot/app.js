@@ -55,9 +55,16 @@ const movieFactsList = document.getElementById('movie-facts-list');
 
 // Point 8: Trailer Elements
 const trailerPanel = document.getElementById('trailer-panel');
+const trailerEmbedContainer = document.getElementById('trailer-embed-container');
 const trailerIframe = document.getElementById('trailer-iframe');
+const trailerShowcaseCard = document.getElementById('trailer-showcase-card');
+const trailerPreviewBackdrop = document.getElementById('trailer-preview-backdrop');
+const trailerVideoTitle = document.getElementById('trailer-video-title');
+const btnShowcasePlay = document.getElementById('btn-showcase-play');
 const btnScrollToTrailer = document.getElementById('btn-scroll-to-trailer');
 const btnOpenYtExternal = document.getElementById('btn-open-yt-external');
+const btnOpenKpTrailer = document.getElementById('btn-open-kp-trailer');
+const btnOpenVkTrailer = document.getElementById('btn-open-vk-trailer');
 
 // Point 1: Box Office Elements
 const boxOfficePanel = document.getElementById('box-office-panel');
@@ -74,8 +81,15 @@ const valUsa = document.getElementById('val-usa');
 const stillsPanel = document.getElementById('stills-panel');
 const stillsGalleryScroll = document.getElementById('stills-gallery-scroll');
 const modalLightbox = document.getElementById('modal-lightbox');
+const lightboxWrapper = document.getElementById('lightbox-wrapper');
+const lightboxStage = document.getElementById('lightbox-stage');
 const lightboxImg = document.getElementById('lightbox-img');
+const lightboxCounter = document.getElementById('lightbox-counter');
 const btnCloseLightbox = document.getElementById('btn-close-lightbox');
+const btnLightboxPrev = document.getElementById('btn-lightbox-prev');
+const btnLightboxNext = document.getElementById('btn-lightbox-next');
+let currentStillsList = [];
+let currentStillIndex = 0;
 
 // Point 4: Franchise Elements
 const franchisePanel = document.getElementById('franchise-panel');
@@ -127,6 +141,45 @@ const shareLinkInput = document.getElementById('share-link-input');
 const btnCopyShareLink = document.getElementById('btn-copy-share-link');
 const btnShareNative = document.getElementById('btn-share-native');
 
+// 🎲 Dynamic Suggestion Chips Pool
+const chipsContainer = document.getElementById('chips-container');
+const btnRefreshChips = document.getElementById('btn-refresh-chips');
+
+const TOPIC_SUGGESTIONS_POOL = [
+  { label: '🐀 Про крыс', query: 'фильмы про крыс' },
+  { label: '🔥 Лучшие боевики', query: 'лучшие боевики' },
+  { label: '🎬 Садовник с Ван Даммом', query: 'Садовник' },
+  { label: '🚀 Интерстеллар', query: 'Интерстеллар' },
+  { label: '🎭 Комедии с Керри', query: 'комедии с Джимом Керри' },
+  { label: '🌌 Триллеры про космос', query: 'триллеры про космос' },
+  { label: '🧟 Про зомби', query: 'фильмы про зомби' },
+  { label: '🕵️ Детективы с финалом', query: 'детективы с неожиданным финалом' },
+  { label: '🏎️ Про гонки', query: 'фильмы про гонки' },
+  { label: '🤖 Киберпанк и ИИ', query: 'фильмы про искусственный интеллект' },
+  { label: '🧙‍♂️ Фэнтези и магия', query: 'лучшие фэнтези' },
+  { label: '💰 Про ограбления', query: 'фильмы про ограбления' },
+  { label: '⏳ Путешествия во времени', query: 'фильмы про путешествия во времени' },
+  { label: '🥋 С Джеки Чаном', query: 'фильмы с Джеки Чаном' },
+  { label: '👻 Страшные ужасы', query: 'лучшие ужасы' },
+  { label: '🍿 Семейные мультфильмы', query: 'лучшие мультфильмы' },
+  { label: '🌊 Про море и выживание', query: 'фильмы про выживание в море' },
+  { label: '👑 Исторические драмы', query: 'исторические фильмы' },
+  { label: '🛸 Про пришельцев', query: 'фильмы про пришельцев' },
+  { label: '🥊 Спортивные драмы', query: 'фильмы про спорт' },
+  { label: '🔫 Гангстерские саги', query: 'фильмы про гангстеров' },
+  { label: '💥 Фильмы Marvel', query: 'фильмы Marvel' },
+  { label: '🤠 Лучшие вестерны', query: 'лучшие вестерны' },
+  { label: '🚢 Фильмы-катастрофы', query: 'фильмы катастрофы' },
+  { label: '🧠 Психологические триллеры', query: 'психологические триллеры' },
+  { label: '🦖 Про динозавров', query: 'фильмы про динозавров' },
+  { label: '⚔️ Про викингов', query: 'фильмы про викингов' },
+  { label: '🚗 Форсаж', query: 'Форсаж' },
+  { label: '🥷 Самураи и ниндзя', query: 'фильмы про самураев' },
+  { label: '🕵️ Шерлок Холмс', query: 'Шерлок Холмс' },
+  { label: '🏝️ Необитаемый остров', query: 'фильмы про необитаемый остров' },
+  { label: '🕶️ Джон Уик', query: 'Джон Уик' }
+];
+
 const toastPopup = document.getElementById('toast-popup');
 
 // Initialize Application
@@ -135,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initEventListeners();
   initVoiceRecognition();
   initPwaInstall();
+  renderRandomSuggestionChips();
   loadSavedSettings();
   updateFavoritesCounter();
 
@@ -293,19 +347,14 @@ function initEventListeners() {
     });
   }
 
-  // Suggestion Chips
-  document.querySelectorAll('.chip-item').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const q = chip.getAttribute('data-query');
-      if (q) {
-        if (movieSearchInput) {
-          movieSearchInput.value = q;
-          if (btnClearInput) btnClearInput.style.display = 'flex';
-        }
-        executeSmartSearch(q);
-      }
+  // Refresh Suggestion Chips
+  if (btnRefreshChips) {
+    btnRefreshChips.addEventListener('click', () => {
+      btnRefreshChips.classList.add('spin');
+      renderRandomSuggestionChips();
+      setTimeout(() => btnRefreshChips.classList.remove('spin'), 400);
     });
-  });
+  }
 
   // Action Buttons
   if (btnScrollToTrailer) {
@@ -316,13 +365,28 @@ function initEventListeners() {
     });
   }
 
-  if (btnOpenYtExternal) {
-    btnOpenYtExternal.addEventListener('click', () => {
-      if (!currentMovieData) return;
-      const q = encodeURIComponent(currentMovieData.trailer?.searchQuery || `${currentMovieData.title} ${currentMovieData.releaseYear} трейлер`);
-      window.open(`https://www.youtube.com/results?search_query=${q}`, '_blank');
-    });
-  }
+  const openYouTubeTrailer = () => {
+    if (!currentMovieData) return;
+    const q = encodeURIComponent(currentMovieData.trailer?.searchQuery || `${currentMovieData.title} ${currentMovieData.releaseYear} трейлер`);
+    window.open(`https://www.youtube.com/results?search_query=${q}`, '_blank');
+  };
+
+  const openKpTrailer = () => {
+    if (!currentMovieData) return;
+    const url = currentMovieData.trailer?.kpUrl || (currentMovieData.id ? `https://www.kinopoisk.ru/film/${currentMovieData.id}/video/` : `https://www.kinopoisk.ru/index.php?kp_query=${encodeURIComponent(currentMovieData.title)}`);
+    window.open(url, '_blank');
+  };
+
+  const openVkTrailer = () => {
+    if (!currentMovieData) return;
+    const q = encodeURIComponent(`${currentMovieData.title} ${currentMovieData.releaseYear} трейлер`);
+    window.open(`https://vk.com/video?q=${q}`, '_blank');
+  };
+
+  if (btnOpenYtExternal) btnOpenYtExternal.addEventListener('click', openYouTubeTrailer);
+  if (btnOpenKpTrailer) btnOpenKpTrailer.addEventListener('click', openKpTrailer);
+  if (btnOpenVkTrailer) btnOpenVkTrailer.addEventListener('click', openVkTrailer);
+  if (trailerShowcaseCard) trailerShowcaseCard.addEventListener('click', openYouTubeTrailer);
 
   if (btnToggleFavorite) {
     btnToggleFavorite.addEventListener('click', toggleFavoriteCurrent);
@@ -344,12 +408,54 @@ function initEventListeners() {
     });
   }
 
-  // Lightbox Close
+  // Lightbox Navigation & Close
   if (btnCloseLightbox && modalLightbox) {
-    btnCloseLightbox.addEventListener('click', () => modalLightbox.classList.remove('open'));
-    modalLightbox.addEventListener('click', (e) => {
-      if (e.target === modalLightbox) modalLightbox.classList.remove('open');
+    btnCloseLightbox.addEventListener('click', closeLightbox);
+  }
+  if (btnLightboxPrev) {
+    btnLightboxPrev.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showPrevStill();
     });
+  }
+  if (btnLightboxNext) {
+    btnLightboxNext.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showNextStill();
+    });
+  }
+
+  // Touch Swipe for Mobile (Swipe left / right)
+  if (lightboxStage) {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    lightboxStage.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    lightboxStage.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length === 1) {
+        touchEndX = e.changedTouches[0].clientX;
+        touchEndY = e.changedTouches[0].clientY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+        const minSwipe = 35;
+
+        if (Math.abs(diffX) > minSwipe && Math.abs(diffX) > Math.abs(diffY)) {
+          if (diffX < 0) {
+            showNextStill();
+          } else {
+            showPrevStill();
+          }
+        }
+      }
+    }, { passive: true });
   }
 
   // Modals Open/Close
@@ -437,10 +543,21 @@ function initEventListeners() {
     }
   });
 
-  // Escape key
+  // Keyboard navigation
   document.addEventListener('keydown', (e) => {
+    if (modalLightbox && modalLightbox.classList.contains('open')) {
+      if (e.key === 'ArrowRight') {
+        showNextStill();
+      } else if (e.key === 'ArrowLeft') {
+        showPrevStill();
+      } else if (e.key === 'Escape') {
+        closeLightbox();
+      }
+      return;
+    }
+
     if (e.key === 'Escape') {
-      [modalFavorites, modalHistory, modalSettings, modalActor, modalShareApp, modalLightbox].forEach(m => {
+      [modalFavorites, modalHistory, modalSettings, modalActor, modalShareApp].forEach(m => {
         if (m) m.classList.remove('open');
       });
     }
@@ -710,14 +827,27 @@ function renderMovieDetails(movie) {
     movieBackdrop.src = movie.backdropPath || movie.posterPath || '';
   }
 
-  // 🎥 POINT 8: Embedded Trailer
-  if (trailerIframe) {
-    if (movie.trailer && movie.trailer.embedUrl) {
-      trailerIframe.src = movie.trailer.embedUrl;
-      if (trailerPanel) trailerPanel.style.display = 'flex';
+  // 🎥 POINT 8: Trailer Player & Showcase
+  if (trailerPanel) {
+    trailerPanel.style.display = 'flex';
+    const tr = movie.trailer || {};
+
+    if (trailerVideoTitle) {
+      trailerVideoTitle.textContent = tr.name || `Трейлер к фильму «${movie.title}»`;
+    }
+
+    if (trailerPreviewBackdrop) {
+      trailerPreviewBackdrop.src = movie.backdropPath || movie.posterPath || '';
+    }
+
+    if (tr.embedUrl) {
+      if (trailerEmbedContainer) trailerEmbedContainer.style.display = 'block';
+      if (trailerIframe) trailerIframe.src = tr.embedUrl;
+      if (trailerShowcaseCard) trailerShowcaseCard.style.display = 'none';
     } else {
-      trailerIframe.src = '';
-      if (trailerPanel) trailerPanel.style.display = 'none';
+      if (trailerEmbedContainer) trailerEmbedContainer.style.display = 'none';
+      if (trailerIframe) trailerIframe.src = '';
+      if (trailerShowcaseCard) trailerShowcaseCard.style.display = 'block';
     }
   }
 
@@ -761,14 +891,14 @@ function renderMovieDetails(movie) {
   // 📸 POINT 2: Movie Stills Gallery
   if (stillsGalleryScroll) {
     stillsGalleryScroll.innerHTML = '';
-    const stills = movie.stills || [];
-    if (stills.length > 0) {
+    currentStillsList = movie.stills || [];
+    if (currentStillsList.length > 0) {
       stillsPanel.style.display = 'flex';
-      stills.forEach(url => {
+      currentStillsList.forEach((url, idx) => {
         const item = document.createElement('div');
         item.className = 'still-item-card';
         item.innerHTML = `<img src="${url}" alt="Кадр из фильма" class="still-item-img" loading="lazy">`;
-        item.addEventListener('click', () => openLightbox(url));
+        item.addEventListener('click', () => openLightbox(idx));
         stillsGalleryScroll.appendChild(item);
       });
     } else {
@@ -867,12 +997,59 @@ function formatVotes(count) {
   return `${count}`;
 }
 
-// Lightbox for Stills
-function openLightbox(url) {
-  if (!lightboxImg || !modalLightbox) return;
-  lightboxImg.src = url;
+// Lightbox for Stills (Swipeable & Navigable Fullscreen Gallery)
+function openLightbox(index) {
+  if (!modalLightbox || !lightboxImg || currentStillsList.length === 0) return;
+  currentStillIndex = Math.max(0, Math.min(index, currentStillsList.length - 1));
+  updateLightboxImage('none');
   modalLightbox.classList.add('open');
   initIcons();
+}
+
+function closeLightbox() {
+  if (modalLightbox) modalLightbox.classList.remove('open');
+}
+
+function showNextStill() {
+  if (currentStillsList.length <= 1) return;
+  currentStillIndex = (currentStillIndex + 1) % currentStillsList.length;
+  updateLightboxImage('left');
+}
+
+function showPrevStill() {
+  if (currentStillsList.length <= 1) return;
+  currentStillIndex = (currentStillIndex - 1 + currentStillsList.length) % currentStillsList.length;
+  updateLightboxImage('right');
+}
+
+function updateLightboxImage(direction = 'none') {
+  if (!lightboxImg || currentStillsList.length === 0) return;
+  const currentUrl = currentStillsList[currentStillIndex];
+
+  lightboxImg.classList.remove('slide-left', 'slide-right');
+  if (direction === 'left') {
+    void lightboxImg.offsetWidth; // trigger reflow
+    lightboxImg.classList.add('slide-left');
+  } else if (direction === 'right') {
+    void lightboxImg.offsetWidth; // trigger reflow
+    lightboxImg.classList.add('slide-right');
+  }
+
+  lightboxImg.src = currentUrl;
+
+  if (lightboxCounter) {
+    lightboxCounter.textContent = `Кадр ${currentStillIndex + 1} из ${currentStillsList.length}`;
+  }
+
+  // Preload adjacent images
+  if (currentStillsList.length > 1) {
+    const nextIdx = (currentStillIndex + 1) % currentStillsList.length;
+    const prevIdx = (currentStillIndex - 1 + currentStillsList.length) % currentStillsList.length;
+    const imgNext = new Image();
+    imgNext.src = currentStillsList[nextIdx];
+    const imgPrev = new Image();
+    imgPrev.src = currentStillsList[prevIdx];
+  }
 }
 
 // Actor Details Modal
@@ -1130,4 +1307,40 @@ function openShareAppModal() {
   modalShareApp.classList.add('open');
   initIcons();
 }
+
+// 🎲 Render Dynamic Random Suggestion Chips
+function renderRandomSuggestionChips() {
+  if (!chipsContainer) return;
+
+  // Add fade out
+  chipsContainer.classList.add('fade-out');
+
+  setTimeout(() => {
+    chipsContainer.innerHTML = '';
+
+    // Pick 6 random distinct suggestions
+    const shuffled = [...TOPIC_SUGGESTIONS_POOL].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 6);
+
+    selected.forEach(item => {
+      const btn = document.createElement('button');
+      btn.className = 'chip-item';
+      btn.textContent = item.label;
+      btn.setAttribute('data-query', item.query);
+
+      btn.addEventListener('click', () => {
+        if (movieSearchInput) {
+          movieSearchInput.value = item.query;
+          if (btnClearInput) btnClearInput.style.display = 'flex';
+        }
+        executeSmartSearch(item.query);
+      });
+
+      chipsContainer.appendChild(btn);
+    });
+
+    chipsContainer.classList.remove('fade-out');
+  }, 150);
+}
+
 

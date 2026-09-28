@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -273,6 +273,7 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
         // 5. Trailers
         string? trailerEmbedUrl = null;
         string? trailerName = null;
+        string? kpTrailerUrl = null;
         try
         {
             var vidReq = new HttpRequestMessage(HttpMethod.Get, $"https://kinopoiskapiunofficial.tech/api/v2.2/films/{filmId}/videos");
@@ -284,9 +285,13 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
                 var items = vidJson?["items"]?.AsArray();
                 if (items != null && items.Count > 0)
                 {
-                    var topTrailer = items.FirstOrDefault(v => (v?["site"]?.ToString() == "YOUTUBE" || v?["site"]?.ToString() == "KINOPOISK_WIDGET") && (v?["name"]?.ToString()?.Contains("трейлер", StringComparison.OrdinalIgnoreCase) == true))
-                                   ?? items.FirstOrDefault(v => v?["site"]?.ToString() == "KINOPOISK_WIDGET" || v?["site"]?.ToString() == "YOUTUBE")
-                                   ?? items[0];
+                    // Prioritize YouTube trailer for direct iframe embedding
+                    var ytTrailer = items.FirstOrDefault(v => v?["site"]?.ToString() == "YOUTUBE" && (v?["name"]?.ToString()?.Contains("трейлер", StringComparison.OrdinalIgnoreCase) == true))
+                                 ?? items.FirstOrDefault(v => v?["site"]?.ToString() == "YOUTUBE");
+
+                    var topTrailer = ytTrailer
+                                  ?? items.FirstOrDefault(v => v?["name"]?.ToString()?.Contains("трейлер", StringComparison.OrdinalIgnoreCase) == true)
+                                  ?? items[0];
 
                     if (topTrailer != null)
                     {
@@ -305,9 +310,10 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
                                     trailerEmbedUrl = $"https://www.youtube-nocookie.com/embed/{videoId}?autoplay=1&rel=0";
                                 }
                             }
-                            else if (rawUrl.Contains("widgets.kinopoisk.ru"))
+                            else
                             {
-                                trailerEmbedUrl = rawUrl;
+                                kpTrailerUrl = rawUrl;
+                                // widgets.kinopoisk.ru sends X-Frame-Options: SAMEORIGIN and cannot be embedded in iframes
                             }
                         }
                     }
@@ -355,8 +361,10 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
             trailer = new
             {
                 embedUrl = trailerEmbedUrl,
-                name = trailerName,
-                searchQuery = $"{titleRu} {year} трейлер русский"
+                name = trailerName ?? "Официальный трейлер",
+                kpUrl = kpTrailerUrl ?? $"https://www.kinopoisk.ru/film/{filmId}/video/",
+                searchQuery = $"{titleRu} {year} трейлер русский",
+                vkSearchQuery = $"{titleRu} {year} трейлер"
             },
             interestingFacts = facts,
             whereToWatch = new[] { "Кинопоиск", "Иви", "Okko", "Premier", "Wink" },

@@ -334,9 +334,18 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
+  max-width: 650px;
   margin-top: 10px;
+}
+
+.suggestions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 4px;
 }
 
 .suggestions-label {
@@ -347,11 +356,49 @@ body {
   font-weight: 600;
 }
 
+.btn-refresh-chips {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-refresh-chips:hover, .btn-refresh-chips:active {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.btn-refresh-chips i {
+  width: 13px;
+  height: 13px;
+  transition: transform 0.4s ease;
+}
+
+.btn-refresh-chips.spin i {
+  transform: rotate(360deg);
+}
+
 .chips-scroll {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+  width: 100%;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.chips-scroll.fade-out {
+  opacity: 0;
+  transform: scale(0.96);
 }
 
 .chip-item {
@@ -363,6 +410,7 @@ body {
   border-radius: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .chip-item:hover, .chip-item:active {
@@ -849,11 +897,11 @@ body {
   color: #cbd5e1;
 }
 
-/* 🎥 POINT 8: Embedded Trailer Player */
+/* 🎥 POINT 8: Embedded Trailer Player & Showcase */
 .trailer-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .trailer-embed-container {
@@ -875,24 +923,130 @@ body {
   height: 100%;
 }
 
-.btn-trailer-external {
-  align-self: flex-start;
-  background: rgba(255, 0, 0, 0.15);
-  border: 1px solid rgba(255, 0, 0, 0.3);
-  color: #ff4444;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 14px;
-  border-radius: 10px;
+.trailer-showcase-card {
+  position: relative;
+  height: 200px;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: all 0.25s ease;
+}
+
+.trailer-showcase-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-primary);
+  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.25);
+}
+
+.trailer-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.trailer-showcase-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(9, 13, 22, 0.88) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.trailer-play-button {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e11d48, #f43f5e);
+  color: white;
   display: flex;
   align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 24px rgba(225, 29, 72, 0.6);
+  transition: transform 0.2s ease;
+}
+
+.trailer-play-button i {
+  width: 26px;
+  height: 26px;
+  margin-left: 3px;
+}
+
+.trailer-showcase-card:hover .trailer-play-button {
+  transform: scale(1.12);
+  box-shadow: 0 0 30px rgba(225, 29, 72, 0.85);
+}
+
+.trailer-showcase-text h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+}
+
+.trailer-showcase-text p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.trailer-buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-trailer-btn {
+  flex: 1;
+  min-width: 140px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
 }
 
-.btn-trailer-external:hover {
+.btn-trailer-btn.btn-yt {
+  background: rgba(255, 0, 0, 0.15);
+  border-color: rgba(255, 0, 0, 0.35);
+  color: #ff5555;
+}
+
+.btn-trailer-btn.btn-yt:hover {
   background: rgba(255, 0, 0, 0.25);
+  color: #ff7777;
+}
+
+.btn-trailer-btn.btn-kp {
+  background: rgba(255, 102, 0, 0.15);
+  border-color: rgba(255, 102, 0, 0.35);
+  color: #ff8533;
+}
+
+.btn-trailer-btn.btn-kp:hover {
+  background: rgba(255, 102, 0, 0.25);
+}
+
+.btn-trailer-btn.btn-vk {
+  background: rgba(0, 119, 255, 0.15);
+  border-color: rgba(0, 119, 255, 0.35);
+  color: #5599ff;
+}
+
+.btn-trailer-btn.btn-vk:hover {
+  background: rgba(0, 119, 255, 0.25);
 }
 
 /* 💰 POINT 1: Box Office & Budget Cards */
@@ -1315,38 +1469,150 @@ body {
   font-size: 13px;
 }
 
-/* Lightbox Modal */
-.lightbox-container {
+/* Fullscreen Lightbox Modal */
+.modal-lightbox-overlay {
+  background: rgba(0, 0, 0, 0.96) !important;
+  padding: 0 !important;
+  touch-action: none;
+}
+
+.lightbox-wrapper {
   position: relative;
-  max-width: 95vw;
-  max-height: 90vh;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.lightbox-img {
-  max-width: 100%;
-  max-height: 85vh;
-  border-radius: 12px;
-  object-fit: contain;
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+.lightbox-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
+  z-index: 20;
+}
+
+.lightbox-counter {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
 }
 
 .btn-close-lightbox {
-  position: absolute;
-  top: -40px;
-  right: 0;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.btn-close-lightbox:hover, .btn-close-lightbox:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.08);
+}
+
+.lightbox-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.lightbox-nav-btn.prev { left: 16px; }
+.lightbox-nav-btn.next { right: 16px; }
+
+.lightbox-nav-btn:hover {
+  background: rgba(56, 189, 248, 0.35);
+  border-color: var(--accent-primary);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.lightbox-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.lightbox-stage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 16px 24px;
+  cursor: grab;
+  touch-action: pan-y pinch-zoom;
+}
+
+.lightbox-stage:active {
+  cursor: grabbing;
+}
+
+.lightbox-img {
+  max-width: 95vw;
+  max-height: 85vh;
+  border-radius: 14px;
+  object-fit: contain;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.lightbox-img.slide-left {
+  animation: slideInRight 0.22s ease-out;
+}
+
+.lightbox-img.slide-right {
+  animation: slideInLeft 0.22s ease-out;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 600px) {
+  .lightbox-nav-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .lightbox-nav-btn.prev { left: 8px; }
+  .lightbox-nav-btn.next { right: 8px; }
 }
 
 /* Saved item row */
