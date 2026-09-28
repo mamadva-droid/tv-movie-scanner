@@ -1,4 +1,4 @@
-const CACHE_NAME = 'movie-scanner-v17';
+﻿const CACHE_NAME = 'kinogid-voice-v20';
 const ASSETS = [
   '/',
   '/index.html',
@@ -15,7 +15,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.map((key) => caches.delete(key))
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       );
     })
   );
@@ -23,11 +23,11 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass API calls directly to network
+  // Never cache API calls
   if (event.request.url.includes('/api/')) {
     return;
   }
-  // Network-First with cache fallback for instant updates
+  // Network-First for immediate updates
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {

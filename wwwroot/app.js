@@ -1,899 +1,720 @@
-// TV Movie Scanner - Main Application Logic
+﻿// КиноГид AI — Voice & Text Movie Guide Application
 
-let currentFacingMode = 'environment';
-let cameraStream = null;
-let currentMode = 'camera'; // 'camera' or 'mic'
-let isScanning = false;
-let isLiveScanning = false;
-let liveScanInterval = null;
-let audioRecorder = null;
-let audioChunks = [];
-let currentAbortController = null;
+let currentMovieData = null;
+let speechRecognition = null;
+let isListening = false;
+let abortController = null;
 
 // DOM Elements
-const videoEl = document.getElementById('camera-stream');
-const canvasEl = document.getElementById('capture-canvas');
-const scanLaserEl = document.getElementById('scan-laser');
-const scannerHintEl = document.getElementById('scanner-hint');
-const btnScan = document.getElementById('btn-scan');
-const shutterIcon = document.getElementById('shutter-icon');
-const btnSwitchCamera = document.getElementById('btn-switch-camera');
-const btnGallery = document.getElementById('btn-gallery');
-const filePicker = document.getElementById('file-picker');
-const tabCamera = document.getElementById('tab-camera');
-const tabMic = document.getElementById('tab-mic');
-const audioOverlay = document.getElementById('audio-overlay');
-const audioTimer = document.getElementById('audio-timer');
-const btnLiveToggle = document.getElementById('btn-live-toggle');
+const btnHome = document.getElementById('btn-home');
+const heroSection = document.getElementById('hero-section');
+const loadingSection = document.getElementById('loading-section');
+const loadingTitle = document.getElementById('loading-title');
+const loadingDesc = document.getElementById('loading-desc');
+const movieDetailsSection = document.getElementById('movie-details-section');
 
-// Full-screen Scanning Overlay Elements
-const scanningOverlay = document.getElementById('scanning-overlay');
-const scanningPreviewImg = document.getElementById('scanning-preview-img');
-const scanStepTitle = document.getElementById('scan-step-title');
-const scanStepDesc = document.getElementById('scan-step-desc');
-const step1 = document.getElementById('step-1');
-const step2 = document.getElementById('step-2');
-const step3 = document.getElementById('step-3');
-const btnCancelScan = document.getElementById('btn-cancel-scan');
+// Search & Voice Controls
+const movieSearchInput = document.getElementById('movie-search-input');
+const btnClearInput = document.getElementById('btn-clear-input');
+const btnSubmitSearch = document.getElementById('btn-submit-search');
+const btnVoiceSearch = document.getElementById('btn-voice-search');
+const voiceStatusText = document.getElementById('voice-status-text');
+const btnBackToSearch = document.getElementById('btn-back-to-search');
 
-// Result Sheet Elements
-const resultSheet = document.getElementById('result-sheet');
-const btnCloseSheet = document.getElementById('btn-close-sheet');
-const btnScanAgain = document.getElementById('btn-scan-again');
-const btnWatchTrailer = document.getElementById('btn-watch-trailer');
-const resultPoster = document.getElementById('result-poster');
-const resultBackdrop = document.getElementById('result-backdrop');
-const posterFallbackCard = document.getElementById('poster-fallback-card');
-const posterFallbackTitle = document.getElementById('poster-fallback-title');
-const resultType = document.getElementById('result-type');
-const resultTitle = document.getElementById('result-title');
-const resultOriginalTitle = document.getElementById('result-original-title');
-const resultDirectorMeta = document.getElementById('result-director-meta');
-const resultDurationMeta = document.getElementById('result-duration-meta');
-const resultRating = document.getElementById('result-rating');
-const resultKpRating = document.getElementById('result-kp-rating');
-const resultYear = document.getElementById('result-year');
-const resultAge = document.getElementById('result-age');
-const resultConfidence = document.getElementById('result-confidence');
-const resultAiExplanation = document.getElementById('result-ai-explanation');
-const resultGenres = document.getElementById('result-genres');
-const resultOverview = document.getElementById('result-overview');
-const resultCast = document.getElementById('result-cast');
-const castSection = document.getElementById('cast-section');
-const resultFacts = document.getElementById('result-facts');
-const factsSection = document.getElementById('facts-section');
-const resultWatchPlatforms = document.getElementById('result-watch-platforms');
-const watchSection = document.getElementById('watch-section');
+// Movie Details Elements
+const movieBackdrop = document.getElementById('movie-backdrop');
+const moviePoster = document.getElementById('movie-poster');
+const posterPlaceholder = document.getElementById('poster-placeholder');
+const posterFallbackText = document.getElementById('poster-fallback-text');
+const movieType = document.getElementById('movie-type');
+const movieTitle = document.getElementById('movie-title');
+const movieOrigTitle = document.getElementById('movie-orig-title');
+const movieKpRating = document.getElementById('movie-kp-rating');
+const movieImdbRating = document.getElementById('movie-imdb-rating');
+const movieYear = document.getElementById('movie-year');
+const movieDuration = document.getElementById('movie-duration');
+const movieCountry = document.getElementById('movie-country');
+const movieAge = document.getElementById('movie-age');
+const movieDirector = document.getElementById('movie-director');
+const movieGenres = document.getElementById('movie-genres');
+const movieOverview = document.getElementById('movie-overview');
+const movieCastGrid = document.getElementById('movie-cast-grid');
+const movieFactsList = document.getElementById('movie-facts-list');
+const btnOpenTrailer = document.getElementById('btn-open-trailer');
+const btnToggleFavorite = document.getElementById('btn-toggle-favorite');
+const favoriteIcon = document.getElementById('favorite-icon');
+const favoriteBtnText = document.getElementById('favorite-btn-text');
+const btnShareMovie = document.getElementById('btn-share-movie');
 
-// Actor Modal Elements
+// Modals
+const modalFavorites = document.getElementById('modal-favorites');
+const btnOpenFavorites = document.getElementById('btn-open-favorites');
+const btnCloseFavorites = document.getElementById('btn-close-favorites');
+const favoritesList = document.getElementById('favorites-list');
+const favoritesCounter = document.getElementById('favorites-counter');
+
+const modalHistory = document.getElementById('modal-history');
+const btnOpenHistory = document.getElementById('btn-open-history');
+const btnCloseHistory = document.getElementById('btn-close-history');
+const historyList = document.getElementById('history-list');
+const btnClearHistory = document.getElementById('btn-clear-history');
+
+const modalSettings = document.getElementById('modal-settings');
+const btnOpenSettings = document.getElementById('btn-open-settings');
+const btnCloseSettings = document.getElementById('btn-close-settings');
+const inputKpKey = document.getElementById('input-kp-key');
+const inputGeminiKey = document.getElementById('input-gemini-key');
+const btnSaveSettings = document.getElementById('btn-save-settings');
+
 const modalActor = document.getElementById('modal-actor');
 const btnCloseActor = document.getElementById('btn-close-actor');
 const actorModalName = document.getElementById('actor-modal-name');
 const actorModalRole = document.getElementById('actor-modal-role');
 const actorModalBio = document.getElementById('actor-modal-bio');
+const actorModalPhoto = document.getElementById('actor-modal-photo');
 const btnActorKp = document.getElementById('btn-actor-kp');
 const btnActorGoogle = document.getElementById('btn-actor-google');
 
-// Modals
-const modalSettings = document.getElementById('modal-settings');
-const btnSettings = document.getElementById('btn-settings');
-const btnCloseSettings = document.getElementById('btn-close-settings');
-const inputGeminiKey = document.getElementById('input-gemini-key');
-const inputTmdbKey = document.getElementById('input-tmdb-key');
-const btnSaveSettings = document.getElementById('btn-save-settings');
-
-const modalPhone = document.getElementById('modal-phone');
-const btnPhoneConnect = document.getElementById('btn-phone-connect');
-const btnClosePhone = document.getElementById('btn-close-phone');
-const phoneConnectUrl = document.getElementById('phone-connect-url');
-const btnCopyUrl = document.getElementById('btn-copy-url');
-const nativeCameraInput = document.getElementById('native-camera-input');
-
-// Search Bar Elements
-const inputMovieSearch = document.getElementById('input-movie-search');
-const btnSearchGo = document.getElementById('btn-search-go');
-const btnClearSearch = document.getElementById('btn-clear-search');
-
-// Toast Notification
-function showToast(message, duration = 3000) {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-  toast.textContent = message;
-  toast.classList.add('show');
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, duration);
-}
+const toastPopup = document.getElementById('toast-popup');
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
+  initIcons();
   initEventListeners();
-
-  if (window.lucide) {
-    try { lucide.createIcons(); } catch (e) { console.warn('Lucide icon init error:', e); }
-  }
+  initVoiceRecognition();
+  loadSavedSettings();
+  updateFavoritesCounter();
 
   // Register PWA Service Worker
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(err => {
-      console.log('SW registration error:', err);
-    });
+    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
   }
-
-  loadSavedKeys();
-  initCamera();
-  loadServerInfo();
 });
 
-// Load API Keys from LocalStorage & Server Sync
-async function loadSavedKeys() {
-  let gemini = localStorage.getItem('gemini_api_key') || '';
-  let tmdb = localStorage.getItem('tmdb_api_key') || '';
-  if (inputGeminiKey) inputGeminiKey.value = gemini;
-  if (inputTmdbKey) inputTmdbKey.value = tmdb;
-
-  try {
-    const res = await fetch('/api/keys');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.geminiApiKey && !gemini) {
-        gemini = data.geminiApiKey;
-        if (inputGeminiKey) inputGeminiKey.value = gemini;
-        localStorage.setItem('gemini_api_key', gemini);
-      }
-      if (data.tmdbApiKey && !tmdb) {
-        tmdb = data.tmdbApiKey;
-        if (inputTmdbKey) inputTmdbKey.value = tmdb;
-        localStorage.setItem('tmdb_api_key', tmdb);
-      }
-    }
-  } catch (e) {
-    console.log('Error syncing keys with server:', e);
+function initIcons() {
+  if (window.lucide) {
+    try { lucide.createIcons(); } catch (e) { }
   }
 }
 
-// Camera Management
-async function initCamera() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+// Toast Popup
+function showToast(message, duration = 3000) {
+  if (!toastPopup) return;
+  toastPopup.textContent = message;
+  toastPopup.classList.add('show');
+  setTimeout(() => {
+    toastPopup.classList.remove('show');
+  }, duration);
+}
+
+// Voice Recognition Initialization
+function initVoiceRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    if (voiceStatusText) voiceStatusText.textContent = 'Голосовой ввод не поддерживается браузером';
     return;
   }
 
-  try {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
+  speechRecognition = new SpeechRecognition();
+  speechRecognition.lang = 'ru-RU';
+  speechRecognition.continuous = false;
+  speechRecognition.interimResults = true;
+
+  speechRecognition.onstart = () => {
+    isListening = true;
+    if (btnVoiceSearch) btnVoiceSearch.classList.add('listening');
+    if (voiceStatusText) voiceStatusText.textContent = '🎙️ Слушаю вас... Говорите название фильма';
+  };
+
+  speechRecognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map(result => result[0])
+      .map(result => result.transcript)
+      .join('');
+
+    if (movieSearchInput) {
+      movieSearchInput.value = transcript;
+      if (btnClearInput) btnClearInput.style.display = transcript.length > 0 ? 'flex' : 'none';
     }
 
-    const constraints = {
-      video: {
-        facingMode: currentFacingMode,
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      },
-      audio: false
-    };
+    if (event.results[0].isFinal) {
+      stopVoiceListening();
+      if (transcript.trim()) {
+        executeSmartSearch(transcript.trim());
+      }
+    }
+  };
 
-    cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-    videoEl.srcObject = cameraStream;
-    await videoEl.play();
-  } catch (err) {
-    console.warn('Live camera stream not available (requires HTTPS on mobile):', err);
+  speechRecognition.onerror = (event) => {
+    stopVoiceListening();
+    if (event.error === 'not-allowed') {
+      showToast('Разрешите доступ к микрофону в настройках браузера');
+    } else if (event.error !== 'no-speech') {
+      showToast('Ошибка микрофона: ' + event.error);
+    }
+  };
+
+  speechRecognition.onend = () => {
+    stopVoiceListening();
+  };
+}
+
+function startVoiceListening() {
+  if (!speechRecognition) {
+    showToast('Голосовой поиск поддерживается в Google Chrome, Safari, Edge');
+    return;
+  }
+  try {
+    speechRecognition.start();
+  } catch (e) {
+    speechRecognition.stop();
   }
 }
 
-function switchCamera() {
-  currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-  initCamera();
-  showToast(currentFacingMode === 'environment' ? 'Задняя камера' : 'Фронтальная камера');
-}
-
-// Helper: Scale and optimize full frame so AI can detect TV anywhere in the room shot
-async function cropAndOptimizeTVFrame(input) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const srcW = img.naturalWidth || img.width;
-      const srcH = img.naturalHeight || img.height;
-
-      // Scale proportionally up to max 1280px preserving the entire photo
-      const maxDim = 1280;
-      let outW = srcW;
-      let outH = srcH;
-
-      if (srcW > maxDim || srcH > maxDim) {
-        if (srcW >= srcH) {
-          outW = maxDim;
-          outH = Math.round((srcH * maxDim) / srcW);
-        } else {
-          outH = maxDim;
-          outW = Math.round((srcW * maxDim) / srcH);
-        }
-      }
-
-      const offCanvas = document.createElement('canvas');
-      offCanvas.width = outW;
-      offCanvas.height = outH;
-      const ctx = offCanvas.getContext('2d');
-
-      // Draw the complete image without blind cropping
-      ctx.drawImage(img, 0, 0, srcW, srcH, 0, 0, outW, outH);
-
-      const optimizedBase64 = offCanvas.toDataURL('image/jpeg', 0.85);
-      resolve(optimizedBase64);
-    };
-    img.onerror = reject;
-
-    if (typeof input === 'string') {
-      img.src = input;
-    } else if (input instanceof HTMLVideoElement) {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = input.videoWidth;
-      tempCanvas.height = input.videoHeight;
-      const tCtx = tempCanvas.getContext('2d');
-      tCtx.drawImage(input, 0, 0);
-      img.src = tempCanvas.toDataURL('image/jpeg', 0.9);
-    }
-  });
+function stopVoiceListening() {
+  isListening = false;
+  if (btnVoiceSearch) btnVoiceSearch.classList.remove('listening');
+  if (voiceStatusText) voiceStatusText.textContent = 'Нажмите микрофон и говорите';
 }
 
 // Event Listeners
 function initEventListeners() {
-  if (btnSwitchCamera) btnSwitchCamera.addEventListener('click', switchCamera);
-
-  // Gallery Picker
-  if (btnGallery) btnGallery.addEventListener('click', () => filePicker.click());
-  if (filePicker) filePicker.addEventListener('change', handleFilePick);
-
-  // Native Direct Camera Input
-  if (nativeCameraInput) {
-    nativeCameraInput.addEventListener('change', (e) => {
-      if (!isScanning) {
-        handleFilePick(e);
-      }
-      setTimeout(() => { e.target.value = ''; }, 500);
+  // Home Click
+  if (btnHome) {
+    btnHome.addEventListener('click', () => {
+      showSearchView();
     });
   }
 
-  // Smart Search Bar
-  if (inputMovieSearch) {
-    inputMovieSearch.addEventListener('input', () => {
-      if (btnClearSearch) {
-        btnClearSearch.style.display = inputMovieSearch.value.trim().length > 0 ? 'flex' : 'none';
+  if (btnBackToSearch) {
+    btnBackToSearch.addEventListener('click', () => {
+      showSearchView();
+    });
+  }
+
+  // Voice Search Trigger
+  if (btnVoiceSearch) {
+    btnVoiceSearch.addEventListener('click', () => {
+      if (isListening) {
+        if (speechRecognition) speechRecognition.stop();
+      } else {
+        startVoiceListening();
+      }
+    });
+  }
+
+  // Search Input Handlers
+  if (movieSearchInput) {
+    movieSearchInput.addEventListener('input', () => {
+      if (btnClearInput) {
+        btnClearInput.style.display = movieSearchInput.value.trim().length > 0 ? 'flex' : 'none';
       }
     });
 
-    inputMovieSearch.addEventListener('keydown', (e) => {
+    movieSearchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        inputMovieSearch.blur();
-        executeTextSearch(inputMovieSearch.value.trim());
+        movieSearchInput.blur();
+        const q = movieSearchInput.value.trim();
+        if (q) executeSmartSearch(q);
       }
     });
   }
 
-  if (btnClearSearch && inputMovieSearch) {
-    btnClearSearch.addEventListener('click', () => {
-      inputMovieSearch.value = '';
-      btnClearSearch.style.display = 'none';
-      inputMovieSearch.focus();
-    });
-  }
-
-  if (btnSearchGo && inputMovieSearch) {
-    btnSearchGo.addEventListener('click', () => {
-      inputMovieSearch.blur();
-      executeTextSearch(inputMovieSearch.value.trim());
-    });
-  }
-
-  // Live Stream Toggle
-  if (btnLiveToggle) {
-    btnLiveToggle.addEventListener('click', toggleLiveScan);
-  }
-
-  // Cancel Scan Button
-  if (btnCancelScan) {
-    btnCancelScan.addEventListener('click', () => {
-      if (currentAbortController) {
-        currentAbortController.abort();
+  if (btnClearInput) {
+    btnClearInput.addEventListener('click', () => {
+      if (movieSearchInput) {
+        movieSearchInput.value = '';
+        btnClearInput.style.display = 'none';
+        movieSearchInput.focus();
       }
-      isScanning = false;
-      setScanningUI(false);
-      showToast('Сканирование отменено');
     });
   }
 
-  // Mode Tabs
-  if (tabCamera) tabCamera.addEventListener('click', () => setMode('camera'));
-  if (tabMic) tabMic.addEventListener('click', () => setMode('mic'));
+  if (btnSubmitSearch) {
+    btnSubmitSearch.addEventListener('click', () => {
+      const q = movieSearchInput ? movieSearchInput.value.trim() : '';
+      if (q) executeSmartSearch(q);
+      else showToast('Введите название фильма или имя актера');
+    });
+  }
 
-  // Main Scan Trigger
-  if (btnScan) {
-    btnScan.addEventListener('click', (e) => {
-      if (isScanning) {
-        e.preventDefault();
-        return;
-      }
-      if (currentMode === 'camera') {
-        if (videoEl && videoEl.videoWidth > 0 && !videoEl.paused) {
-          e.preventDefault();
-          captureAndRecognize();
+  // Suggestion Chips
+  document.querySelectorAll('.chip-item').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const q = chip.getAttribute('data-query');
+      if (q) {
+        if (movieSearchInput) {
+          movieSearchInput.value = q;
+          if (btnClearInput) btnClearInput.style.display = 'flex';
         }
-        // When video is not playing, default label action opens nativeCameraInput instantly
+        executeSmartSearch(q);
+      }
+    });
+  });
+
+  // Action Buttons
+  if (btnOpenTrailer) {
+    btnOpenTrailer.addEventListener('click', () => {
+      if (!currentMovieData) return;
+      const q = encodeURIComponent(currentMovieData.trailerQuery || `${currentMovieData.title} трейлер`);
+      window.open(`https://www.youtube.com/results?search_query=${q}`, '_blank');
+    });
+  }
+
+  if (btnToggleFavorite) {
+    btnToggleFavorite.addEventListener('click', toggleFavoriteCurrent);
+  }
+
+  if (btnShareMovie) {
+    btnShareMovie.addEventListener('click', () => {
+      if (!currentMovieData) return;
+      if (navigator.share) {
+        navigator.share({
+          title: currentMovieData.title,
+          text: `Смотри фильм «${currentMovieData.title}» (${currentMovieData.releaseYear}): ${currentMovieData.overview}`,
+          url: window.location.href
+        }).catch(() => {});
       } else {
-        e.preventDefault();
-        startAudioScan();
+        navigator.clipboard.writeText(`${currentMovieData.title} (${currentMovieData.releaseYear})`);
+        showToast('Название фильма скопировано!');
       }
     });
   }
 
-  // Actor Modal
-  if (btnCloseActor && modalActor) {
-    btnCloseActor.addEventListener('click', () => modalActor.classList.remove('open'));
+  // Modals Open/Close
+  if (btnOpenFavorites && modalFavorites) {
+    btnOpenFavorites.addEventListener('click', () => {
+      renderFavoritesModal();
+      modalFavorites.classList.add('open');
+    });
+  }
+  if (btnCloseFavorites && modalFavorites) {
+    btnCloseFavorites.addEventListener('click', () => modalFavorites.classList.remove('open'));
   }
 
-  // Settings Modal
-  if (btnSettings && modalSettings) {
-    btnSettings.addEventListener('click', () => modalSettings.classList.add('open'));
+  if (btnOpenHistory && modalHistory) {
+    btnOpenHistory.addEventListener('click', () => {
+      renderHistoryModal();
+      modalHistory.classList.add('open');
+    });
+  }
+  if (btnCloseHistory && modalHistory) {
+    btnCloseHistory.addEventListener('click', () => modalHistory.classList.remove('open'));
+  }
+  if (btnClearHistory) {
+    btnClearHistory.addEventListener('click', () => {
+      localStorage.removeItem('movie_search_history');
+      renderHistoryModal();
+      showToast('История очищена');
+    });
+  }
+
+  if (btnOpenSettings && modalSettings) {
+    btnOpenSettings.addEventListener('click', () => modalSettings.classList.add('open'));
   }
   if (btnCloseSettings && modalSettings) {
     btnCloseSettings.addEventListener('click', () => modalSettings.classList.remove('open'));
   }
-  if (modalSettings) {
-    modalSettings.addEventListener('click', (e) => {
-      if (e.target === modalSettings) modalSettings.classList.remove('open');
-    });
-  }
   if (btnSaveSettings) {
-    btnSaveSettings.addEventListener('click', async () => {
-      const geminiKey = inputGeminiKey.value.trim();
-      const tmdbKey = inputTmdbKey.value.trim();
-
-      localStorage.setItem('gemini_api_key', geminiKey);
-      localStorage.setItem('tmdb_api_key', tmdbKey);
-
-      try {
-        await fetch('/api/save-keys', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            geminiApiKey: geminiKey,
-            tmdbApiKey: tmdbKey
-          })
-        });
-      } catch (e) {
-        console.warn('Could not save keys to server:', e);
-      }
-
-      if (modalSettings) modalSettings.classList.remove('open');
-      showToast('Настройки сохранены и синхронизированы!');
-    });
+    btnSaveSettings.addEventListener('click', saveSettings);
   }
 
-  // Phone Connect Modal
-  if (btnPhoneConnect && modalPhone) {
-    btnPhoneConnect.addEventListener('click', () => modalPhone.classList.add('open'));
-  }
-  if (btnClosePhone && modalPhone) {
-    btnClosePhone.addEventListener('click', () => modalPhone.classList.remove('open'));
-  }
-  if (modalPhone) {
-    modalPhone.addEventListener('click', (e) => {
-      if (e.target === modalPhone) modalPhone.classList.remove('open');
-    });
-  }
-  if (modalActor) {
-    modalActor.addEventListener('click', (e) => {
-      if (e.target === modalActor) modalActor.classList.remove('open');
-    });
-  }
-  if (btnCopyUrl && phoneConnectUrl) {
-    btnCopyUrl.addEventListener('click', () => {
-      navigator.clipboard.writeText(phoneConnectUrl.textContent);
-      showToast('Ссылка скопирована!');
-    });
+  if (btnCloseActor && modalActor) {
+    btnCloseActor.addEventListener('click', () => modalActor.classList.remove('open'));
   }
 
-  // Escape key closes modals
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (modalSettings) modalSettings.classList.remove('open');
-      if (modalPhone) modalPhone.classList.remove('open');
-      if (modalActor) modalActor.classList.remove('open');
-      closeResultSheet();
+  // Backdrop click to close modals
+  [modalFavorites, modalHistory, modalSettings, modalActor].forEach(modal => {
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('open');
+      });
     }
   });
 
-  // Result Sheet
-  if (btnCloseSheet) btnCloseSheet.addEventListener('click', closeResultSheet);
-  if (btnScanAgain) btnScanAgain.addEventListener('click', closeResultSheet);
-}
-
-function setMode(mode) {
-  currentMode = mode;
-  if (mode === 'camera') {
-    if (tabCamera) tabCamera.classList.add('active');
-    if (tabMic) tabMic.classList.remove('active');
-    if (audioOverlay) audioOverlay.style.display = 'none';
-    if (scannerHintEl) {
-      scannerHintEl.innerHTML = '<i data-lucide="scan" class="hint-icon"></i> <span>Наведите камеру на экран ТВ</span>';
+  // Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      [modalFavorites, modalHistory, modalSettings, modalActor].forEach(m => {
+        if (m) m.classList.remove('open');
+      });
     }
-  } else {
-    if (tabMic) tabMic.classList.add('active');
-    if (tabCamera) tabCamera.classList.remove('active');
-    if (scannerHintEl) {
-      scannerHintEl.innerHTML = '<i data-lucide="mic" class="hint-icon"></i> <span>Нажмите кнопку для записи звука</span>';
-    }
-  }
-  if (window.lucide) lucide.createIcons();
+  });
 }
 
-// Live Stream Continuous Scanning
-function toggleLiveScan() {
-  if (!videoEl || !videoEl.videoWidth || videoEl.paused) {
-    showToast('Для Live-сканера откройте https://192.168.0.120:5001');
-    return;
-  }
-
-  isLiveScanning = !isLiveScanning;
-  if (isLiveScanning) {
-    if (btnLiveToggle) btnLiveToggle.classList.add('active');
-    showToast('Live-сканер включен: распознавание каждые 4 сек');
-    liveScanInterval = setInterval(() => {
-      if (!isScanning && resultSheet && !resultSheet.classList.contains('open') && videoEl.videoWidth > 0) {
-        captureAndRecognize(null, true);
-      }
-    }, 4000);
-  } else {
-    if (btnLiveToggle) btnLiveToggle.classList.remove('active');
-    clearInterval(liveScanInterval);
-    liveScanInterval = null;
-    showToast('Live-сканер выключен');
-  }
+// Show / Hide Views
+function showSearchView() {
+  if (heroSection) heroSection.style.display = 'flex';
+  if (loadingSection) loadingSection.style.display = 'none';
+  if (movieDetailsSection) movieDetailsSection.style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Full-screen Scanning Overlay Management
-function setScanningUI(active, imageBase64 = null, stepTitle = '', stepDesc = '', currentStep = 2) {
-  if (!scanningOverlay) return;
-  if (active) {
-    if (imageBase64 && scanningPreviewImg) {
-      scanningPreviewImg.src = imageBase64;
-    }
-    if (scanStepTitle) scanStepTitle.textContent = stepTitle || 'Анализируем экран телевизора...';
-    if (scanStepDesc) scanStepDesc.textContent = stepDesc || 'Кадр оптимизирован под формат 16:9';
-    
-    if (step1) step1.className = 'step-item active';
-    if (step2) step2.className = currentStep >= 2 ? 'step-item active' : 'step-item';
-    if (step3) step3.className = currentStep >= 3 ? 'step-item active' : 'step-item';
-
-    scanningOverlay.classList.add('active');
-  } else {
-    scanningOverlay.classList.remove('active');
-  }
-  if (window.lucide) lucide.createIcons();
+function showLoadingView(title, desc) {
+  if (heroSection) heroSection.style.display = 'none';
+  if (loadingSection) loadingSection.style.display = 'flex';
+  if (movieDetailsSection) movieDetailsSection.style.display = 'none';
+  if (loadingTitle) loadingTitle.textContent = title || 'Ищем фильм...';
+  if (loadingDesc) loadingDesc.textContent = desc || 'Загрузка официальных постеров, рейтингов и актеров';
+  initIcons();
 }
 
-// Execute Smart Text Search
-async function executeTextSearch(query) {
-  if (!query) {
-    showToast('Введите название фильма или сериала');
-    return;
-  }
-  if (isScanning) return;
-  isScanning = true;
-  currentAbortController = new AbortController();
+function showDetailsView() {
+  if (heroSection) heroSection.style.display = 'none';
+  if (loadingSection) loadingSection.style.display = 'none';
+  if (movieDetailsSection) movieDetailsSection.style.display = 'flex';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  initIcons();
+}
+
+// Main Smart Search Function
+async function executeSmartSearch(query) {
+  if (!query) return;
+
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+
+  showLoadingView(`Ищем: «${query}»`, 'Поиск по базе Кинопоиска, загрузка постеров и актерского состава...');
 
   try {
-    setScanningUI(true, null, `Ищем: ${query}`, 'Поиск фильма, постеров и актеров в кино-базе...', 2);
-
     const geminiKey = localStorage.getItem('gemini_api_key') || '';
-    // Call text search endpoint
-    const response = await fetch(`/api/search-title?query=${encodeURIComponent(query)}&clientApiKey=${encodeURIComponent(geminiKey)}`, {
-      signal: currentAbortController.signal
-    });
+    const searchUrl = `/api/smart-search?query=${encodeURIComponent(query)}&clientApiKey=${encodeURIComponent(geminiKey)}`;
+
+    const response = await fetch(searchUrl, { signal: abortController.signal });
+    const data = await response.json();
 
     if (!response.ok) {
-      throw new Error('Не удалось найти фильм по запросу');
+      throw new Error(data.error || 'Фильм не найден. Попробуйте уточнить название.');
     }
 
-    const geminiResult = await response.json();
-    setScanningUI(true, null, `Найдено: ${geminiResult.title || query}`, 'Загрузка официального постера и фото актеров...', 3);
+    currentMovieData = data;
+    saveToHistory(query, data);
+    renderMovieDetails(data);
+    showDetailsView();
 
-    // Query Kinopoisk / TMDB for HD poster and HD actor photos
-    let tmdbData = null;
-    try {
-      const tmdbKey = localStorage.getItem('tmdb_api_key') || '';
-      const searchUrl = `/api/tmdb-search?query=${encodeURIComponent(geminiResult.title || query)}&year=${geminiResult.releaseYear || ''}&clientApiKey=${encodeURIComponent(tmdbKey)}`;
-      const tmdbRes = await fetch(searchUrl, { signal: currentAbortController.signal });
-      if (tmdbRes.ok) {
-        tmdbData = await tmdbRes.json();
-      }
-    } catch (e) {
-      console.warn('Metadata fetch error:', e);
-    }
-
-    displayResult(geminiResult, tmdbData, null);
   } catch (err) {
-    if (err.name === 'AbortError') {
-      showToast('Поиск отменен');
-    } else {
-      console.error('Search error:', err);
-      showToast(err.message || 'Ошибка поиска. Попробуйте еще раз.');
-    }
-  } finally {
-    isScanning = false;
-    currentAbortController = null;
-    setScanningUI(false);
+    if (err.name === 'AbortError') return;
+    console.error('Search error:', err);
+    showToast(err.message || 'Ошибка поиска. Попробуйте еще раз.', 4000);
+    showSearchView();
   }
 }
 
-// Capture Video Frame and Run Recognition
-async function captureAndRecognize(overrideRaw = null, isLiveBackground = false) {
-  if (isScanning) return;
+// Render Movie Dossier
+function renderMovieDetails(movie) {
+  if (!movie) return;
 
-  let rawSource = overrideRaw;
+  // Titles
+  if (movieTitle) movieTitle.textContent = movie.title || 'Фильм';
+  if (movieOrigTitle) movieOrigTitle.textContent = movie.originalTitle || '';
+  if (movieType) movieType.textContent = (movie.type || 'ФИЛЬМ').toUpperCase();
 
-  if (!rawSource) {
-    if (!videoEl || !videoEl.videoWidth || !videoEl.videoHeight) {
-      if (nativeCameraInput) {
-        nativeCameraInput.click();
-        return;
-      }
-      showToast('Видеопоток камеры еще не готов');
-      return;
-    }
-    rawSource = videoEl;
-  }
+  // Ratings
+  const kp = (movie.ratings && movie.ratings.kinopoisk) ? Number(movie.ratings.kinopoisk).toFixed(1) : '—';
+  const imdb = (movie.ratings && movie.ratings.imdb) ? Number(movie.ratings.imdb).toFixed(1) : '—';
+  if (movieKpRating) movieKpRating.textContent = kp;
+  if (movieImdbRating) movieImdbRating.textContent = imdb;
 
-  isScanning = true;
-  currentAbortController = new AbortController();
+  // Meta
+  if (movieYear) movieYear.innerHTML = `<i data-lucide="calendar"></i> ${movie.releaseYear || '—'}`;
+  if (movieDuration) movieDuration.innerHTML = `<i data-lucide="clock"></i> ${movie.duration || '—'}`;
+  const countries = movie.countries && movie.countries.length > 0 ? movie.countries.join(', ') : 'Мир';
+  if (movieCountry) movieCountry.innerHTML = `<i data-lucide="globe"></i> ${countries}`;
+  if (movieAge) movieAge.textContent = movie.ageRating || '16+';
+  if (movieDirector) movieDirector.textContent = movie.director || 'Не указан';
 
-  try {
-    // Step 1: Auto-Crop to 16:9 TV frame and downscale to ~80KB
-    const optimizedBase64 = await cropAndOptimizeTVFrame(rawSource);
-
-    if (!isLiveBackground) {
-      setScanningUI(true, optimizedBase64, 'Анализируем экран телевизора...', 'Нейросеть Gemini 2.5 распознает актеров, сцену и маркеры фильма', 2);
-    }
-
-    const geminiKey = localStorage.getItem('gemini_api_key') || '';
-    const tmdbKey = localStorage.getItem('tmdb_api_key') || '';
-
-    // Step 2: Send frame to Gemini Vision API with 45s timeout
-    const timeoutId = setTimeout(() => {
-      if (currentAbortController) currentAbortController.abort();
-    }, 45000);
-
-    const geminiResponse = await fetch('/api/recognize-image', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imageBase64: optimizedBase64,
-        apiKey: geminiKey
-      }),
-      signal: currentAbortController.signal
+  // Genres
+  if (movieGenres) {
+    movieGenres.innerHTML = '';
+    const genres = movie.genres && movie.genres.length > 0 ? movie.genres : ['Кино'];
+    genres.forEach(g => {
+      const chip = document.createElement('span');
+      chip.className = 'genre-chip';
+      chip.textContent = g;
+      movieGenres.appendChild(chip);
     });
+  }
 
-    clearTimeout(timeoutId);
-
-    const geminiResult = await geminiResponse.json();
-
-    if (!geminiResponse.ok) {
-      throw new Error(geminiResult.error || 'Ошибка при распознавании кадра');
+  // Posters & Backdrops
+  if (movie.posterPath) {
+    if (moviePoster) {
+      moviePoster.src = movie.posterPath;
+      moviePoster.style.display = 'block';
+      moviePoster.onerror = () => {
+        moviePoster.style.display = 'none';
+        if (posterPlaceholder) posterPlaceholder.style.display = 'flex';
+      };
     }
-
-    if (!isLiveBackground) {
-      setScanningUI(true, optimizedBase64, `Найдено: ${geminiResult.title}`, 'Загрузка постера, сюжета и кино-энциклопедии...', 3);
+    if (posterPlaceholder) posterPlaceholder.style.display = 'none';
+  } else {
+    if (moviePoster) moviePoster.style.display = 'none';
+    if (posterPlaceholder) {
+      posterPlaceholder.style.display = 'flex';
+      if (posterFallbackText) posterFallbackText.textContent = movie.title || 'Кино';
     }
+  }
 
-    // Step 3: Query TMDB for rich poster and backdrops
-    let tmdbData = null;
-    try {
-      const searchUrl = `/api/tmdb-search?query=${encodeURIComponent(geminiResult.title)}&year=${geminiResult.releaseYear || ''}&clientApiKey=${encodeURIComponent(tmdbKey)}`;
-      const tmdbResponse = await fetch(searchUrl, { signal: currentAbortController.signal });
-      if (tmdbResponse.ok) {
-        tmdbData = await tmdbResponse.json();
-      }
-    } catch (e) {
-      console.warn('TMDB fetch error:', e);
-    }
+  if (movieBackdrop) {
+    movieBackdrop.src = movie.backdropPath || movie.posterPath || '';
+  }
 
-    displayResult(geminiResult, tmdbData, optimizedBase64);
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      console.log('Scan aborted by user or timeout.');
-      showToast('Время ожидания ответа истекло. Попробуйте еще раз.');
+  // Overview / Synopsis
+  if (movieOverview) {
+    movieOverview.textContent = movie.overview || 'Сюжетное описание формируется...';
+  }
+
+  // Cast List
+  if (movieCastGrid) {
+    movieCastGrid.innerHTML = '';
+    const actors = movie.actors || [];
+    if (actors.length > 0) {
+      document.getElementById('actors-panel').style.display = 'flex';
+      actors.forEach(actor => {
+        const card = document.createElement('div');
+        card.className = 'actor-card';
+        const initial = actor.name ? actor.name.charAt(0).toUpperCase() : '🎭';
+        
+        const photoHtml = actor.profilePath
+          ? `<img src="${actor.profilePath}" alt="${actor.name}" class="actor-img" onerror="this.outerHTML='<div class=\\'actor-placeholder\\'>${initial}</div>'">`
+          : `<div class="actor-placeholder">${initial}</div>`;
+
+        card.innerHTML = `
+          <div class="actor-photo-wrapper">${photoHtml}</div>
+          <div class="actor-info">
+            <span class="actor-name" title="${actor.name}">${actor.name}</span>
+            <span class="actor-character" title="${actor.character || 'Роль'}">${actor.character || 'В роли'}</span>
+          </div>
+        `;
+        card.addEventListener('click', () => openActorModal(actor));
+        movieCastGrid.appendChild(card);
+      });
     } else {
-      console.error('Scan failed:', err);
-      showToast(err.message || 'Не удалось распознать фильм. Попробуйте еще раз.', 4000);
+      document.getElementById('actors-panel').style.display = 'none';
     }
-  } finally {
-    isScanning = false;
-    currentAbortController = null;
-    setScanningUI(false);
   }
-}
 
-// Audio Recording Scan
-async function startAudioScan() {
-  if (isScanning) return;
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    if (audioOverlay) audioOverlay.style.display = 'flex';
-
-    let secondsLeft = 5;
-    if (audioTimer) audioTimer.textContent = `${secondsLeft} сек`;
-    
-    const interval = setInterval(() => {
-      secondsLeft--;
-      if (secondsLeft > 0) {
-        if (audioTimer) audioTimer.textContent = `${secondsLeft} сек`;
-      } else {
-        clearInterval(interval);
-      }
-    }, 1000);
-
-    audioRecorder = new MediaRecorder(stream);
-    audioChunks = [];
-    audioRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-    audioRecorder.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop());
-      if (audioOverlay) audioOverlay.style.display = 'none';
-      showToast('Аудио записано. Для максимально точного определения сфотографируйте экран ТВ.');
-    };
-
-    audioRecorder.start();
-    setTimeout(() => {
-      if (audioRecorder && audioRecorder.state === 'recording') {
-        audioRecorder.stop();
-      }
-    }, 5000);
-
-  } catch (err) {
-    showToast('Микрофон недоступен: ' + err.message);
-    if (audioOverlay) audioOverlay.style.display = 'none';
+  // Facts List
+  if (movieFactsList) {
+    movieFactsList.innerHTML = '';
+    const facts = movie.interestingFacts || [];
+    if (facts.length > 0) {
+      document.getElementById('facts-panel').style.display = 'flex';
+      facts.forEach(f => {
+        const li = document.createElement('li');
+        li.textContent = f;
+        movieFactsList.appendChild(li);
+      });
+    } else {
+      document.getElementById('facts-panel').style.display = 'none';
+    }
   }
+
+  updateFavoriteButtonState();
+  initIcons();
 }
 
-// Handle File Pick from Gallery / Native Camera
-function handleFilePick(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    captureAndRecognize(event.target.result);
-  };
-  reader.readAsDataURL(file);
-}
-
-// Open Actor Details Modal
+// Actor Details Modal
 function openActorModal(actor) {
+  if (!actor) return;
   if (actorModalName) actorModalName.textContent = actor.name;
-  if (actorModalRole) actorModalRole.textContent = `Роль: ${actor.character || 'Персонаж'}`;
-  if (actorModalBio) actorModalBio.textContent = actor.bio || `${actor.name} исполняет роль ${actor.character || 'в фильме'}.`;
+  if (actorModalRole) actorModalRole.textContent = `В роли: ${actor.character || 'Персонаж'}`;
+  if (actorModalBio) actorModalBio.textContent = actor.bio || `${actor.name} исполняет роль в фильме «${currentMovieData ? currentMovieData.title : ''}».`;
+
+  if (actorModalPhoto) {
+    if (actor.profilePath) {
+      actorModalPhoto.src = actor.profilePath;
+      actorModalPhoto.style.display = 'block';
+    } else {
+      actorModalPhoto.style.display = 'none';
+    }
+  }
 
   const query = encodeURIComponent(actor.name);
   if (btnActorKp) {
-    btnActorKp.onclick = () => {
-      window.open(`https://www.kinopoisk.ru/index.php?kp_query=${query}`, '_blank');
-    };
+    btnActorKp.onclick = () => window.open(`https://www.kinopoisk.ru/index.php?kp_query=${query}`, '_blank');
   }
   if (btnActorGoogle) {
-    btnActorGoogle.onclick = () => {
-      window.open(`https://www.google.com/search?q=${query}+актер`, '_blank');
-    };
+    btnActorGoogle.onclick = () => window.open(`https://www.google.com/search?q=${query}+актер`, '_blank');
   }
 
   if (modalActor) modalActor.classList.add('open');
+  initIcons();
 }
 
-// Display Recognition Result
-function displayResult(gemini, tmdb, capturedFrame) {
+// Favorites Management
+function getFavorites() {
   try {
-    const isTmdbFound = tmdb && tmdb.found;
+    return JSON.parse(localStorage.getItem('movie_favorites') || '[]');
+  } catch {
+    return [];
+  }
+}
 
-    if (resultTitle) resultTitle.textContent = (isTmdbFound && tmdb.title) ? tmdb.title : (gemini.title || 'Фильм');
-    if (resultOriginalTitle) resultOriginalTitle.textContent = (isTmdbFound && tmdb.originalTitle) ? tmdb.originalTitle : (gemini.originalTitle || '');
-    
-    // Type Badge
-    if (resultType) resultType.textContent = (gemini.type || 'ФИЛЬМ').toUpperCase();
+function isCurrentMovieFavorite() {
+  if (!currentMovieData) return false;
+  const favs = getFavorites();
+  return favs.some(f => f.title === currentMovieData.title && f.releaseYear === currentMovieData.releaseYear);
+}
 
-    // Director & Duration
-    const director = gemini.director || 'Не указан';
-    const duration = gemini.duration || (gemini.countries ? gemini.countries.join(', ') : 'Фильм');
-    if (resultDirectorMeta) resultDirectorMeta.textContent = `Режиссер: ${director}`;
-    if (resultDurationMeta) resultDurationMeta.textContent = `⏱ ${duration}`;
-
-    // Year & Age
-    if (resultYear) resultYear.textContent = (isTmdbFound && tmdb.releaseDate) ? tmdb.releaseDate.substring(0, 4) : (gemini.releaseYear ? gemini.releaseYear : '—');
-    if (resultAge) resultAge.textContent = gemini.ageRating || '16+';
-
-    // Ratings (IMDb & Kinopoisk)
-    let imdbVal = (gemini.ratings && gemini.ratings.imdb) ? gemini.ratings.imdb : (isTmdbFound && tmdb.voteAverage ? tmdb.voteAverage.toFixed(1) : '—');
-    let kpVal = (gemini.ratings && gemini.ratings.kinopoisk) ? gemini.ratings.kinopoisk : '—';
-
-    if (resultRating) resultRating.textContent = `IMDb ${imdbVal}`;
-    if (resultKpRating) resultKpRating.textContent = `КП ${kpVal}`;
-
-    const confidenceMap = {
-      high: 'Высокая точность',
-      medium: 'Средняя точность',
-      low: 'Примерное совпадение'
-    };
-    if (resultConfidence) resultConfidence.textContent = confidenceMap[gemini.confidence] || 'Распознано';
-
-    // AI Explanation & Scene Breakdown
-    let explanation = gemini.explanation || gemini.sceneDescription || 'Распознано по деталям кадра.';
-    if (gemini.sceneDescription && gemini.explanation && gemini.sceneDescription !== gemini.explanation) {
-      explanation = `${gemini.sceneDescription}\n\n🔍 ${gemini.explanation}`;
-    }
-    if (resultAiExplanation) resultAiExplanation.textContent = explanation;
-
-    // Overview / Plot Summary
-    if (resultOverview) resultOverview.textContent = gemini.overview || (isTmdbFound && tmdb.overview ? tmdb.overview : 'Сюжетное описание фильма формируется...');
-
-    // Poster & Backdrop Handling
-    const activePoster = (isTmdbFound && tmdb.posterPath) ? tmdb.posterPath : (gemini && gemini.posterPath ? gemini.posterPath : null);
-    const activeBackdrop = (isTmdbFound && tmdb.backdropPath) ? tmdb.backdropPath : (gemini && gemini.backdropPath ? gemini.backdropPath : null);
-
-    if (activePoster) {
-      if (resultPoster) {
-        resultPoster.src = activePoster;
-        resultPoster.style.display = 'block';
-        resultPoster.onerror = () => {
-          resultPoster.style.display = 'none';
-          if (posterFallbackCard) posterFallbackCard.style.display = 'flex';
-        };
-      }
-      if (posterFallbackCard) posterFallbackCard.style.display = 'none';
+function updateFavoriteButtonState() {
+  const isFav = isCurrentMovieFavorite();
+  if (btnToggleFavorite) {
+    if (isFav) {
+      btnToggleFavorite.classList.add('saved');
+      if (favoriteBtnText) favoriteBtnText.textContent = 'В избранном';
+      if (favoriteIcon) favoriteIcon.setAttribute('data-lucide', 'bookmark-check');
     } else {
-      if (resultPoster) resultPoster.style.display = 'none';
-      if (posterFallbackCard) {
-        posterFallbackCard.style.display = 'flex';
-        if (posterFallbackTitle) posterFallbackTitle.textContent = gemini.title || 'Кино';
-      }
+      btnToggleFavorite.classList.remove('saved');
+      if (favoriteBtnText) favoriteBtnText.textContent = 'В избранное';
+      if (favoriteIcon) favoriteIcon.setAttribute('data-lucide', 'bookmark');
     }
-
-    if (activeBackdrop) {
-      if (resultBackdrop) resultBackdrop.src = activeBackdrop;
-    } else if (capturedFrame) {
-      if (resultBackdrop) resultBackdrop.src = capturedFrame;
-    } else if (activePoster) {
-      if (resultBackdrop) resultBackdrop.src = activePoster;
-    }
-
-    // Genres
-    if (resultGenres) {
-      resultGenres.innerHTML = '';
-      const genres = (gemini.genres && gemini.genres.length > 0) ? gemini.genres : ((isTmdbFound && tmdb.genres) ? tmdb.genres : ['Кино', gemini.type || 'Фильм']);
-      genres.forEach(g => {
-        const span = document.createElement('span');
-        span.className = 'genre-tag';
-        span.textContent = g;
-        resultGenres.appendChild(span);
-      });
-    }
-
-    // Cast List (with click handlers)
-    if (resultCast) {
-      resultCast.innerHTML = '';
-      const actorsList = (isTmdbFound && tmdb.cast && tmdb.cast.length > 0) ? tmdb.cast : (gemini.actors && gemini.actors.length > 0 ? gemini.actors : []);
-
-      if (actorsList.length > 0) {
-        if (castSection) castSection.style.display = 'block';
-        actorsList.forEach(actor => {
-          const item = document.createElement('div');
-          item.className = 'cast-item';
-          item.title = 'Нажмите для биографии';
-          const initial = (actor.name && actor.name.length > 0) ? actor.name.charAt(0).toUpperCase() : '🎭';
-          
-          if (actor.profilePath) {
-            item.innerHTML = `
-              <img src="${actor.profilePath}" class="cast-avatar" onerror="this.outerHTML='<div class=\\'cast-avatar actor-avatar-icon\\'>${initial}</div>'">
-              <span class="cast-name">${actor.name}</span>
-              <span class="cast-role">${actor.character || 'В роли'}</span>
-            `;
-          } else {
-            item.innerHTML = `
-              <div class="cast-avatar actor-avatar-icon">${initial}</div>
-              <span class="cast-name">${actor.name}</span>
-              <span class="cast-role">${actor.character || 'В роли'}</span>
-            `;
-          }
-          item.addEventListener('click', () => openActorModal(actor));
-          resultCast.appendChild(item);
-        });
-      } else {
-        if (castSection) castSection.style.display = 'none';
-      }
-    }
-
-    // Interesting Facts
-    if (resultFacts) {
-      resultFacts.innerHTML = '';
-      if (gemini.interestingFacts && gemini.interestingFacts.length > 0) {
-        if (factsSection) factsSection.style.display = 'block';
-        gemini.interestingFacts.forEach(fact => {
-          const li = document.createElement('li');
-          li.textContent = fact;
-          resultFacts.appendChild(li);
-        });
-      } else {
-        if (factsSection) factsSection.style.display = 'none';
-      }
-    }
-
-    // Where to Watch
-    if (resultWatchPlatforms) {
-      resultWatchPlatforms.innerHTML = '';
-      const platforms = (gemini.whereToWatch && gemini.whereToWatch.length > 0) ? gemini.whereToWatch : ['Кинопоиск', 'Иви', 'Okko', 'Premier'];
-      platforms.forEach(p => {
-        const chip = document.createElement('div');
-        chip.className = 'platform-chip';
-        chip.innerHTML = `<i data-lucide="play"></i> <span>${p}</span>`;
-        chip.onclick = () => {
-          window.open(`https://www.google.com/search?q=смотреть+${encodeURIComponent(gemini.title)}+онлайн+${encodeURIComponent(p)}`, '_blank');
-        };
-        resultWatchPlatforms.appendChild(chip);
-      });
-    }
-
-    // Trailer Button
-    if (btnWatchTrailer) {
-      const trailerQuery = gemini.trailerQuery || `${gemini.title} русский трейлер`;
-      btnWatchTrailer.onclick = () => {
-        if (isTmdbFound && tmdb.trailer) {
-          window.open(`https://www.youtube.com/watch?v=${tmdb.trailer}`, '_blank');
-        } else {
-          window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(trailerQuery)}`, '_blank');
-        }
-      };
-    }
-
-    // Open Sheet
-    if (resultSheet) {
-      resultSheet.classList.add('open');
-      resultSheet.scrollTop = 0;
-    }
-    if (window.lucide) {
-      try { lucide.createIcons(); } catch (e) { console.warn('Lucide icon error:', e); }
-    }
-  } catch (err) {
-    console.error('Error rendering result sheet:', err);
-    if (resultSheet) resultSheet.classList.add('open');
+    initIcons();
   }
 }
 
-function closeResultSheet() {
-  resultSheet.classList.remove('open');
+function toggleFavoriteCurrent() {
+  if (!currentMovieData) return;
+  let favs = getFavorites();
+  const exists = favs.findIndex(f => f.title === currentMovieData.title && f.releaseYear === currentMovieData.releaseYear);
+
+  if (exists >= 0) {
+    favs.splice(exists, 1);
+    showToast('Удалено из избранного');
+  } else {
+    favs.unshift({
+      title: currentMovieData.title,
+      originalTitle: currentMovieData.originalTitle,
+      releaseYear: currentMovieData.releaseYear,
+      posterPath: currentMovieData.posterPath,
+      ratings: currentMovieData.ratings,
+      savedAt: new Date().toISOString()
+    });
+    showToast('Сохранено в избранное! ⭐');
+  }
+
+  localStorage.setItem('movie_favorites', JSON.stringify(favs));
+  updateFavoriteButtonState();
+  updateFavoritesCounter();
 }
 
-// Load Server Info & Generate QR for phone connect
-async function loadServerInfo() {
+function updateFavoritesCounter() {
+  const favs = getFavorites();
+  if (favoritesCounter) {
+    favoritesCounter.textContent = favs.length;
+    favoritesCounter.style.display = favs.length > 0 ? 'block' : 'none';
+  }
+}
+
+function renderFavoritesModal() {
+  if (!favoritesList) return;
+  const favs = getFavorites();
+  if (favs.length === 0) {
+    favoritesList.innerHTML = `
+      <div class="empty-state">
+        <i data-lucide="bookmark-x"></i>
+        <p>В избранном пока ничего нет.<br>Нажмите «В избранное» на карточке любого фильма.</p>
+      </div>
+    `;
+  } else {
+    favoritesList.innerHTML = '';
+    favs.forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'saved-item-row';
+      row.innerHTML = `
+        <div>
+          <div class="saved-item-title">${f.title}</div>
+          <div class="saved-item-year">${f.releaseYear || ''} • КП ${f.ratings?.kinopoisk || '—'}</div>
+        </div>
+        <i data-lucide="chevron-right"></i>
+      `;
+      row.addEventListener('click', () => {
+        if (modalFavorites) modalFavorites.classList.remove('open');
+        executeSmartSearch(f.title);
+      });
+      favoritesList.appendChild(row);
+    });
+  }
+  initIcons();
+}
+
+// Search History Management
+function saveToHistory(query, movie) {
   try {
-    const res = await fetch('/api/server-info');
-    if (!res.ok) return;
-    const data = await res.json();
-    
-    if (data.connectionUrls && data.connectionUrls.length > 0) {
-      const primaryUrl = data.connectionUrls[0];
-      phoneConnectUrl.textContent = primaryUrl;
+    let history = JSON.parse(localStorage.getItem('movie_search_history') || '[]');
+    history = history.filter(h => h.query.toLowerCase() !== query.toLowerCase());
+    history.unshift({
+      query,
+      title: movie ? movie.title : query,
+      year: movie ? movie.releaseYear : '',
+      timestamp: new Date().toISOString()
+    });
+    if (history.length > 25) history.pop();
+    localStorage.setItem('movie_search_history', JSON.stringify(history));
+  } catch { }
+}
 
-      // Render QR Code
-      if (window.QRCode && qrcodeEl) {
-        qrcodeEl.innerHTML = '';
-        new QRCode(qrcodeEl, {
-          text: primaryUrl,
-          width: 160,
-          height: 160,
-          colorDark: '#090d16',
-          colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      }
-    }
-  } catch (e) {
-    console.log('Server info fetch failed:', e);
+function renderHistoryModal() {
+  if (!historyList) return;
+  let history = [];
+  try { history = JSON.parse(localStorage.getItem('movie_search_history') || '[]'); } catch { }
+
+  if (history.length === 0) {
+    historyList.innerHTML = `
+      <div class="empty-state">
+        <i data-lucide="history"></i>
+        <p>История поисков пуста.</p>
+      </div>
+    `;
+  } else {
+    historyList.innerHTML = '';
+    history.forEach(h => {
+      const row = document.createElement('div');
+      row.className = 'saved-item-row';
+      row.innerHTML = `
+        <div>
+          <div class="saved-item-title">${h.query}</div>
+          <div class="saved-item-year">${h.title !== h.query ? `Найдено: ${h.title}` : 'Поисковый запрос'}</div>
+        </div>
+        <i data-lucide="arrow-up-right"></i>
+      `;
+      row.addEventListener('click', () => {
+        if (modalHistory) modalHistory.classList.remove('open');
+        if (movieSearchInput) movieSearchInput.value = h.query;
+        executeSmartSearch(h.query);
+      });
+      historyList.appendChild(row);
+    });
   }
+  initIcons();
+}
+
+// Settings Sync
+async function loadSavedSettings() {
+  const kp = localStorage.getItem('kinopoisk_api_key') || '8c8e1a50-6322-4135-8875-5d40a5420d86';
+  const gemini = localStorage.getItem('gemini_api_key') || '';
+  if (inputKpKey) inputKpKey.value = kp;
+  if (inputGeminiKey) inputGeminiKey.value = gemini;
+}
+
+async function saveSettings() {
+  const kp = inputKpKey ? inputKpKey.value.trim() : '';
+  const gemini = inputGeminiKey ? inputGeminiKey.value.trim() : '';
+
+  localStorage.setItem('kinopoisk_api_key', kp || '8c8e1a50-6322-4135-8875-5d40a5420d86');
+  localStorage.setItem('gemini_api_key', gemini);
+
+  try {
+    await fetch('/api/save-keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kinopoiskApiKey: kp,
+        geminiApiKey: gemini
+      })
+    });
+  } catch (e) { }
+
+  if (modalSettings) modalSettings.classList.remove('open');
+  showToast('Настройки успешно сохранены!');
 }
