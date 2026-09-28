@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'kinogid-voice-v20';
+﻿const CACHE_NAME = 'kinogid-voice-v30';
 const ASSETS = [
   '/',
   '/index.html',
@@ -23,11 +23,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Never cache API calls
   if (event.request.url.includes('/api/')) {
     return;
   }
-  // Network-First for immediate updates
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {

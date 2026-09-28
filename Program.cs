@@ -124,6 +124,9 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
         var year = detJson["year"]?.GetValue<int>() ?? 0;
         var kpRating = detJson["ratingKinopoisk"]?.GetValue<double>() ?? 0;
         var imdbRating = detJson["ratingImdb"]?.GetValue<double>() ?? 0;
+        var kpVoteCount = detJson["ratingKinopoiskVoteCount"]?.GetValue<int>() ?? 0;
+        var imdbVoteCount = detJson["ratingImdbVoteCount"]?.GetValue<int>() ?? 0;
+
         var filmLength = detJson["filmLength"]?.GetValue<int>() ?? 0;
         var durationStr = filmLength > 0 ? $"{filmLength / 60} ч {filmLength % 60} мин" : "Фильм";
         var desc = detJson["description"]?.ToString() ?? detJson["shortDescription"]?.ToString() ?? "Описание сюжета...";
@@ -133,8 +136,9 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
         var genres = detJson["genres"]?.AsArray().Select(g => g?["genre"]?.ToString()).Where(g => g != null).ToList() ?? new List<string?> { "Кино" };
         var countries = detJson["countries"]?.AsArray().Select(c => c?["country"]?.ToString()).Where(c => c != null).ToList() ?? new List<string?> { "Мир" };
 
-        // Fetch staff (Director, Actors)
+        // 1. Staff
         string director = "Не указан";
+        string composer = "Не указан";
         var castList = new List<object>();
 
         try
@@ -152,7 +156,10 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
                     var dir = staffArray.FirstOrDefault(s => s?["professionKey"]?.ToString() == "DIRECTOR");
                     if (dir != null) director = dir?["nameRu"]?.ToString() ?? dir?["nameEn"]?.ToString() ?? director;
 
-                    var actors = staffArray.Where(s => s?["professionKey"]?.ToString() == "ACTOR").Take(12);
+                    var comp = staffArray.FirstOrDefault(s => s?["professionKey"]?.ToString() == "COMPOSER");
+                    if (comp != null) composer = comp?["nameRu"]?.ToString() ?? comp?["nameEn"]?.ToString() ?? composer;
+
+                    var actors = staffArray.Where(s => s?["professionKey"]?.ToString() == "ACTOR").Take(14);
                     foreach (var a in actors)
                     {
                         var aName = a?["nameRu"]?.ToString() ?? a?["nameEn"]?.ToString() ?? "Актер";
@@ -171,14 +178,155 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
         }
         catch { }
 
+        // 2. Box Office
+        var boxOffice = new Dictionary<string, string>();
+        try
+        {
+            var boxReq = new HttpRequestMessage(HttpMethod.Get, $"https://kinopoiskapiunofficial.tech/api/v2.2/films/{filmId}/box_office");
+            boxReq.Headers.Add("X-API-KEY", kpKey);
+            var boxRes = await client.SendAsync(boxReq);
+            if (boxRes.IsSuccessStatusCode)
+            {
+                var boxJson = JsonNode.Parse(await boxRes.Content.ReadAsStringAsync());
+                var items = boxJson?["items"]?.AsArray();
+                if (items != null)
+                {
+                    foreach (var b in items)
+                    {
+                        var type = b?["type"]?.ToString();
+                        var amount = b?["amount"]?.GetValue<long>() ?? 0;
+                        var symbol = b?["symbol"]?.ToString() ?? "$";
+                        if (amount > 0 && !string.IsNullOrWhiteSpace(type))
+                        {
+                            if (type == "BUDGET") boxOffice["budget"] = $"{symbol}{amount:N0}";
+                            else if (type == "WORLD") boxOffice["world"] = $"{symbol}{amount:N0}";
+                            else if (type == "RUS") boxOffice["rus"] = $"{symbol}{amount:N0}";
+                            else if (type == "USA") boxOffice["usa"] = $"{symbol}{amount:N0}";
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 3. Stills
+        var stills = new List<string>();
+        try
+        {
+            var imgReq = new HttpRequestMessage(HttpMethod.Get, $"https://kinopoiskapiunofficial.tech/api/v2.2/films/{filmId}/images?type=STILL&page=1");
+            imgReq.Headers.Add("X-API-KEY", kpKey);
+            var imgRes = await client.SendAsync(imgReq);
+            if (imgRes.IsSuccessStatusCode)
+            {
+                var imgJson = JsonNode.Parse(await imgRes.Content.ReadAsStringAsync());
+                var items = imgJson?["items"]?.AsArray();
+                if (items != null)
+                {
+                    foreach (var img in items.Take(16))
+                    {
+                        var u = img?["imageUrl"]?.ToString() ?? img?["previewUrl"]?.ToString();
+                        if (!string.IsNullOrWhiteSpace(u))
+                        {
+                            stills.Add($"/api/image-proxy?url={Uri.EscapeDataString(u)}");
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 4. Franchise
+        var franchise = new List<object>();
+        try
+        {
+            var seqReq = new HttpRequestMessage(HttpMethod.Get, $"https://kinopoiskapiunofficial.tech/api/v2.1/films/{filmId}/sequels_and_prequels");
+            seqReq.Headers.Add("X-API-KEY", kpKey);
+            var seqRes = await client.SendAsync(seqReq);
+            if (seqRes.IsSuccessStatusCode)
+            {
+                var seqArray = JsonNode.Parse(await seqRes.Content.ReadAsStringAsync())?.AsArray();
+                if (seqArray != null)
+                {
+                    foreach (var s in seqArray)
+                    {
+                        var sId = s?["filmId"]?.GetValue<int>() ?? 0;
+                        var sName = s?["nameRu"]?.ToString() ?? s?["nameOriginal"]?.ToString();
+                        var sYear = s?["year"]?.ToString();
+                        var sPoster = s?["posterUrlPreview"]?.ToString() ?? s?["posterUrl"]?.ToString();
+                        if (sId > 0 && !string.IsNullOrWhiteSpace(sName))
+                        {
+                            franchise.Add(new
+                            {
+                                id = sId,
+                                title = sName,
+                                year = sYear,
+                                relationType = s?["relationType"]?.ToString() ?? "SEQUEL",
+                                posterPath = !string.IsNullOrWhiteSpace(sPoster) ? $"/api/image-proxy?url={Uri.EscapeDataString(sPoster)}" : null
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // 5. Trailers
+        string? trailerEmbedUrl = null;
+        string? trailerName = null;
+        try
+        {
+            var vidReq = new HttpRequestMessage(HttpMethod.Get, $"https://kinopoiskapiunofficial.tech/api/v2.2/films/{filmId}/videos");
+            vidReq.Headers.Add("X-API-KEY", kpKey);
+            var vidRes = await client.SendAsync(vidReq);
+            if (vidRes.IsSuccessStatusCode)
+            {
+                var vidJson = JsonNode.Parse(await vidRes.Content.ReadAsStringAsync());
+                var items = vidJson?["items"]?.AsArray();
+                if (items != null && items.Count > 0)
+                {
+                    var topTrailer = items.FirstOrDefault(v => (v?["site"]?.ToString() == "YOUTUBE" || v?["site"]?.ToString() == "KINOPOISK_WIDGET") && (v?["name"]?.ToString()?.Contains("трейлер", StringComparison.OrdinalIgnoreCase) == true))
+                                   ?? items.FirstOrDefault(v => v?["site"]?.ToString() == "KINOPOISK_WIDGET" || v?["site"]?.ToString() == "YOUTUBE")
+                                   ?? items[0];
+
+                    if (topTrailer != null)
+                    {
+                        var rawUrl = topTrailer["url"]?.ToString();
+                        trailerName = topTrailer["name"]?.ToString() ?? "Официальный трейлер";
+
+                        if (!string.IsNullOrWhiteSpace(rawUrl))
+                        {
+                            if (rawUrl.Contains("youtube.com") || rawUrl.Contains("youtu.be"))
+                            {
+                                var videoId = "";
+                                if (rawUrl.Contains("v=")) videoId = rawUrl.Split("v=")[1].Split("&")[0];
+                                else if (rawUrl.Contains("youtu.be/")) videoId = rawUrl.Split("youtu.be/")[1].Split("?")[0];
+                                if (!string.IsNullOrWhiteSpace(videoId))
+                                {
+                                    trailerEmbedUrl = $"https://www.youtube-nocookie.com/embed/{videoId}?autoplay=1&rel=0";
+                                }
+                            }
+                            else if (rawUrl.Contains("widgets.kinopoisk.ru"))
+                            {
+                                trailerEmbedUrl = rawUrl;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        // Facts
         var facts = new List<string>();
         if (!string.IsNullOrWhiteSpace(slogan)) facts.Add($"Слоган: «{slogan}»");
-        if (kpRating > 0) facts.Add($"Рейтинг Кинопоиска: {kpRating:0.1} / 10.");
-        if (imdbRating > 0) facts.Add($"Рейтинг IMDb: {imdbRating:0.1} / 10.");
-        facts.Add($"Производство: {string.Join(", ", countries)}, премьера в {year} году.");
+        if (kpRating > 0) facts.Add($"Рейтинг Кинопоиска: {kpRating:0.1} / 10 {(kpVoteCount > 0 ? $"({kpVoteCount:N0} оценок)" : "")}.");
+        if (imdbRating > 0) facts.Add($"Рейтинг IMDb: {imdbRating:0.1} / 10 {(imdbVoteCount > 0 ? $"({imdbVoteCount:N0} оценок)" : "")}.");
+        if (composer != "Не указан") facts.Add($"Композитор саундтрека: {composer}.");
+        facts.Add($"Страны производства: {string.Join(", ", countries)}, премьера в {year} году.");
 
         return new
         {
+            isList = false,
             id = filmId,
             title = titleRu,
             originalTitle = titleOrig,
@@ -189,15 +337,27 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
             duration = durationStr,
             ageRating,
             director,
+            composer,
             ratings = new
             {
                 kinopoisk = kpRating > 0 ? kpRating : 7.8,
-                imdb = imdbRating > 0 ? imdbRating : 7.6
+                kinopoiskVotes = kpVoteCount,
+                imdb = imdbRating > 0 ? imdbRating : 7.6,
+                imdbVotes = imdbVoteCount
             },
             overview = desc,
             posterPath = !string.IsNullOrWhiteSpace(posterUrl) ? $"/api/image-proxy?url={Uri.EscapeDataString(posterUrl)}" : null,
             backdropPath = !string.IsNullOrWhiteSpace(coverUrl) ? $"/api/image-proxy?url={Uri.EscapeDataString(coverUrl)}" : null,
             actors = castList,
+            boxOffice,
+            stills,
+            franchise,
+            trailer = new
+            {
+                embedUrl = trailerEmbedUrl,
+                name = trailerName,
+                searchQuery = $"{titleRu} {year} трейлер русский"
+            },
             interestingFacts = facts,
             whereToWatch = new[] { "Кинопоиск", "Иви", "Okko", "Premier", "Wink" },
             trailerQuery = $"{titleRu} {year} трейлер"
@@ -209,7 +369,18 @@ async Task<object?> FetchKinopoiskDetails(int filmId, string kpKey, HttpClient c
     }
 }
 
-// Main Endpoint: Smart Voice & Text Natural Language Movie Search
+// Endpoint: Direct Movie Details by Kinopoisk ID
+app.MapGet("/api/movie-details", async (int id, IHttpClientFactory httpClientFactory, IConfiguration config) =>
+{
+    if (id <= 0) return Results.BadRequest(new { error = "Некорректный ID фильма" });
+    var client = httpClientFactory.CreateClient("DefaultClient");
+    var kpKey = config["Kinopoisk:ApiKey"] ?? "8c8e1a50-6322-4135-8875-5d40a5420d86";
+    var details = await FetchKinopoiskDetails(id, kpKey, client);
+    if (details != null) return Results.Ok(details);
+    return Results.NotFound(new { error = "Фильм не найден" });
+});
+
+// Main Endpoint: Smart Voice & Text Movie Search (Supports Collections / Lists & Single Films)
 app.MapGet("/api/smart-search", async (string query, string? clientApiKey, IHttpClientFactory httpClientFactory, IConfiguration config) =>
 {
     if (string.IsNullOrWhiteSpace(query)) return Results.BadRequest(new { error = "Запрос не может быть пустым" });
@@ -220,14 +391,28 @@ app.MapGet("/api/smart-search", async (string query, string? clientApiKey, IHttp
         client.Timeout = TimeSpan.FromSeconds(15);
         var kpKey = config["Kinopoisk:ApiKey"] ?? "8c8e1a50-6322-4135-8875-5d40a5420d86";
 
-        // Clean conversational noise (e.g. "фильм садовник с ван даммом" -> extract candidate keywords)
         var cleanQuery = query.Trim();
         var lower = cleanQuery.ToLowerInvariant();
 
-        // 1. Direct Search on Kinopoisk Unofficial
-        var encoded = Uri.EscapeDataString(cleanQuery);
-        var searchUrl = $"https://kinopoiskapiunofficial.tech/api/v2.1/films/search-by-keyword?keyword={encoded}";
-        var req = new HttpRequestMessage(HttpMethod.Get, searchUrl);
+        // Check if user is asking for a Collection / Thematic List
+        string[] listKeywords = { "про ", "все ", "список", "лучшие", "топ ", "фильмы ", "комедии", "боевики", "ужасы", "триллеры", "сериалы", "мультфильмы", "подборка", "какие фильмы", "новинки", "кино про" };
+        bool isListIntent = listKeywords.Any(k => lower.Contains(k)) || lower.Split(' ').Length >= 3;
+
+        // Clean query for search
+        var stripped = cleanQuery;
+        string[] prefixesToRemove = { "фильмы про", "фильм про", "кино про", "сериалы про", "мультфильмы про", "все про", "список фильмов", "лучшие", "топ", "подборка", "покажи", "найди" };
+        foreach (var p in prefixesToRemove)
+        {
+            if (stripped.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+            {
+                stripped = stripped.Substring(p.Length).Trim();
+            }
+        }
+        if (string.IsNullOrWhiteSpace(stripped)) stripped = cleanQuery;
+
+        // 1. Search Kinopoisk Unofficial by Keyword
+        var encKeyword = Uri.EscapeDataString(stripped);
+        var req = new HttpRequestMessage(HttpMethod.Get, $"https://kinopoiskapiunofficial.tech/api/v2.1/films/search-by-keyword?keyword={encKeyword}");
         req.Headers.Add("X-API-KEY", kpKey);
 
         var kpRes = await client.SendAsync(req);
@@ -239,139 +424,60 @@ app.MapGet("/api/smart-search", async (string query, string? clientApiKey, IHttp
 
             if (films != null && films.Count > 0)
             {
-                var top = films[0];
-                var filmId = top?["filmId"]?.GetValue<int>() ?? 0;
-                if (filmId > 0)
+                // If query was thematic / multi-film, return a rich Collection List
+                if (isListIntent && films.Count > 1)
                 {
-                    var details = await FetchKinopoiskDetails(filmId, kpKey, client);
-                    if (details != null) return Results.Ok(details);
-                }
-            }
-        }
-
-        // 2. If direct search didn't find, try searching stripped clean words (e.g. remove "фильм", "сериал", "с актером")
-        var stripped = cleanQuery;
-        string[] prefixesToRemove = { "фильм", "сериал", "мультфильм", "кино", "покажи", "найди", "расскажи про", "про", "где играет", "с участием" };
-        foreach (var p in prefixesToRemove)
-        {
-            if (stripped.StartsWith(p, StringComparison.OrdinalIgnoreCase))
-            {
-                stripped = stripped.Substring(p.Length).Trim();
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(stripped) && stripped != cleanQuery)
-        {
-            var encStripped = Uri.EscapeDataString(stripped);
-            var reqStripped = new HttpRequestMessage(HttpMethod.Get, $"https://kinopoiskapiunofficial.tech/api/v2.1/films/search-by-keyword?keyword={encStripped}");
-            reqStripped.Headers.Add("X-API-KEY", kpKey);
-            var resStripped = await client.SendAsync(reqStripped);
-            if (resStripped.IsSuccessStatusCode)
-            {
-                var bodyS = await resStripped.Content.ReadAsStringAsync();
-                var jsonS = JsonNode.Parse(bodyS);
-                var filmsS = jsonS?["films"]?.AsArray();
-                if (filmsS != null && filmsS.Count > 0)
-                {
-                    var topS = filmsS[0];
-                    var fid = topS?["filmId"]?.GetValue<int>() ?? 0;
-                    if (fid > 0)
+                    var listItems = new List<object>();
+                    foreach (var f in films.Take(15))
                     {
-                        var details = await FetchKinopoiskDetails(fid, kpKey, client);
+                        var fid = f?["filmId"]?.GetValue<int>() ?? 0;
+                        var tRu = f?["nameRu"]?.ToString() ?? f?["nameEn"]?.ToString() ?? "Фильм";
+                        var tEn = f?["nameEn"]?.ToString() ?? "";
+                        var yr = f?["year"]?.ToString();
+                        int.TryParse(yr, out int releaseYr);
+                        var poster = f?["posterUrlPreview"]?.ToString() ?? f?["posterUrl"]?.ToString();
+                        var rating = f?["rating"]?.ToString() ?? "7.5";
+                        var desc = f?["description"]?.ToString() ?? "";
+                        var genresList = f?["genres"]?.AsArray().Select(g => g?["genre"]?.ToString()).Where(g => g != null).ToList() ?? new List<string?> { "Кино" };
+                        var countriesList = f?["countries"]?.AsArray().Select(c => c?["country"]?.ToString()).Where(c => c != null).ToList() ?? new List<string?> { "Мир" };
+
+                        listItems.Add(new
+                        {
+                            id = fid,
+                            title = tRu,
+                            originalTitle = tEn,
+                            releaseYear = releaseYr > 0 ? releaseYr : (int.TryParse(yr, out int y) ? y : 2023),
+                            rating,
+                            genres = genresList,
+                            countries = countriesList,
+                            posterPath = !string.IsNullOrWhiteSpace(poster) ? $"/api/image-proxy?url={Uri.EscapeDataString(poster)}" : null,
+                            overview = desc
+                        });
+                    }
+
+                    return Results.Ok(new
+                    {
+                        isList = true,
+                        collectionTitle = $"Подборка: {cleanQuery}",
+                        total = listItems.Count,
+                        items = listItems
+                    });
+                }
+                else
+                {
+                    // Single Film Match
+                    var top = films[0];
+                    var filmId = top?["filmId"]?.GetValue<int>() ?? 0;
+                    if (filmId > 0)
+                    {
+                        var details = await FetchKinopoiskDetails(filmId, kpKey, client);
                         if (details != null) return Results.Ok(details);
                     }
                 }
             }
         }
 
-        // 3. Fallback: Use Gemini AI to parse complex natural query (e.g. "фильм где человек просыпается в ванне со льдом")
-        const string DefaultGeminiKey = "AIzaSyA33U6-qWAWJpN3VEZftv-CGVSN_pPt_Hs";
-        var serverApiKey = config["Gemini:ApiKey"] ?? DefaultGeminiKey;
-        var keysToTry = new List<string>();
-        if (!string.IsNullOrWhiteSpace(clientApiKey)) keysToTry.Add(clientApiKey);
-        if (!string.IsNullOrWhiteSpace(serverApiKey) && !keysToTry.Contains(serverApiKey)) keysToTry.Add(serverApiKey);
-        if (!keysToTry.Contains(DefaultGeminiKey)) keysToTry.Add(DefaultGeminiKey);
-
-        var prompt = $@"Ты интеллектуальный кинопоисковик. Пользователь ищет фильм/сериал по описанию или запросу: ""{query}"".
-1. Определи точное официальное название фильма на русском языке и год выпуска.
-2. Предоставь информацию в JSON формате:
-{{
-  ""title"": ""Точное название фильма на русском"",
-  ""originalTitle"": ""Original Title"",
-  ""type"": ""Фильм"" | ""Сериал"",
-  ""releaseYear"": 2023,
-  ""director"": ""Имя Режиссера"",
-  ""genres"": [""Жанр1"", ""Жанр2""],
-  ""duration"": ""1 ч 45 мин"",
-  ""ratings"": {{ ""kinopoisk"": 8.0, ""imdb"": 8.0 }},
-  ""overview"": ""Подробный сюжет на русском языке..."",
-  ""actors"": [
-    {{ ""name"": ""Имя Актера"", ""character"": ""Имя персонажа"", ""bio"": ""Справка об актере"" }}
-  ],
-  ""interestingFacts"": [""Интересный факт о фильме...""]
-}}";
-
-        var payload = new
-        {
-            contents = new[] { new { parts = new object[] { new { text = prompt } } } },
-            generationConfig = new { response_mime_type = "application/json", temperature = 0.2 }
-        };
-        var contentString = JsonSerializer.Serialize(payload);
-
-        foreach (var tryKey in keysToTry)
-        {
-            foreach (var modelName in new[] { "gemini-2.5-flash", "gemini-3.5-flash" })
-            {
-                try
-                {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-                    var url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={tryKey}";
-                    var content = new StringContent(contentString, Encoding.UTF8, "application/json");
-                    var gRes = await client.PostAsync(url, content, cts.Token);
-                    if (gRes.IsSuccessStatusCode)
-                    {
-                        var gBody = await gRes.Content.ReadAsStringAsync();
-                        var gJson = JsonNode.Parse(gBody);
-                        var rawText = gJson?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString()?.Trim() ?? "{}";
-                        if (rawText.StartsWith("```json")) rawText = rawText.Substring(7);
-                        if (rawText.StartsWith("```")) rawText = rawText.Substring(3);
-                        if (rawText.EndsWith("```")) rawText = rawText.Substring(0, rawText.Length - 3);
-
-                        var parsed = JsonNode.Parse(rawText);
-                        var exactTitle = parsed?["title"]?.ToString();
-
-                        // Try fetching poster from Kinopoisk using the exact title identified by Gemini
-                        if (!string.IsNullOrWhiteSpace(exactTitle))
-                        {
-                            var encT = Uri.EscapeDataString(exactTitle);
-                            var kpTReq = new HttpRequestMessage(HttpMethod.Get, $"https://kinopoiskapiunofficial.tech/api/v2.1/films/search-by-keyword?keyword={encT}");
-                            kpTReq.Headers.Add("X-API-KEY", kpKey);
-                            var kpTRes = await client.SendAsync(kpTReq);
-                            if (kpTRes.IsSuccessStatusCode)
-                            {
-                                var bodyT = await kpTRes.Content.ReadAsStringAsync();
-                                var jsonT = JsonNode.Parse(bodyT);
-                                var fT = jsonT?["films"]?.AsArray();
-                                if (fT != null && fT.Count > 0)
-                                {
-                                    var fid = fT[0]?["filmId"]?.GetValue<int>() ?? 0;
-                                    if (fid > 0)
-                                    {
-                                        var details = await FetchKinopoiskDetails(fid, kpKey, client);
-                                        if (details != null) return Results.Ok(details);
-                                    }
-                                }
-                            }
-                        }
-
-                        return Results.Ok(parsed);
-                    }
-                }
-                catch { }
-            }
-        }
-
-        return Results.Json(new { error = "Фильм не найден. Попробуйте уточнить название или имя актера." }, statusCode: 404);
+        return Results.Json(new { error = "Фильмы по вашему запросу не найдены. Попробуйте уточнить тему." }, statusCode: 404);
     }
     catch (Exception ex)
     {

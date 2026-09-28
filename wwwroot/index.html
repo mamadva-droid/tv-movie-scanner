@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#090d16">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>КиноГид — Поиск фильмов и сериалов</title>
+  <title>КиноГид — Полноценная кино-энциклопедия</title>
   <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/styles.css?v=25">
+  <link rel="stylesheet" href="/styles.css?v=35">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -21,7 +21,7 @@
         <i data-lucide="clapperboard" class="brand-icon"></i>
         <div class="brand-texts">
           <span class="brand-name">КиноГид <span class="brand-ai">PRO</span></span>
-          <span class="brand-tagline">Поиск по названию, актерам и голосу</span>
+          <span class="brand-tagline">Поиск по названию, актерам, темам и голосу</span>
         </div>
       </div>
       <div class="header-nav">
@@ -44,8 +44,8 @@
       <!-- Hero Search Section -->
       <section class="hero-search-section" id="hero-section">
         
-        <h1 class="hero-title">Найдите любой фильм или сериал</h1>
-        <p class="hero-subtitle">Введите название текстом или нажмите микрофон для голосового поиска</p>
+        <h1 class="hero-title">Найдите любой фильм, сериал или подборку</h1>
+        <p class="hero-subtitle">Введите название, тему (например: <em>«про крыс»</em>, <em>«боевики 2024»</em>) или нажмите микрофон</p>
 
         <!-- Main Unified Search Bar (Text + Voice + Submit) -->
         <div class="search-form-wrapper">
@@ -54,7 +54,7 @@
             <input 
               type="text" 
               id="movie-search-input" 
-              placeholder="Например: Садовник с Ван Даммом, Интерстеллар, Матрица..." 
+              placeholder="Название, актер или тема: «про крыс», «комедии 90х»..." 
               autocomplete="off"
               autofocus
             >
@@ -74,19 +74,19 @@
         <!-- Voice Status Line -->
         <div class="voice-status-line" id="voice-status-text" style="display: none;">
           <span class="pulse-dot"></span>
-          <span>Слушаю вас... Говорите название фильма</span>
+          <span>Слушаю вас... Говорите запрос</span>
         </div>
 
         <!-- Quick Query Suggestion Chips -->
         <div class="suggestions-wrapper">
-          <span class="suggestions-label">Популярные запросы:</span>
+          <span class="suggestions-label">Популярные темы и фильмы:</span>
           <div class="chips-scroll">
+            <button class="chip-item" data-query="фильмы про крыс">🐀 Про крыс</button>
+            <button class="chip-item" data-query="лучшие боевики">🔥 Лучшие боевики</button>
             <button class="chip-item" data-query="Садовник">🎬 Садовник с Ван Даммом</button>
             <button class="chip-item" data-query="Интерстеллар">🚀 Интерстеллар</button>
-            <button class="chip-item" data-query="Матрица">🕶️ Матрица</button>
-            <button class="chip-item" data-query="Джентльмены">🏆 Джентльмены</button>
-            <button class="chip-item" data-query="Фильмы с Леонардо ДиКаприо">🎭 Фильмы с ДиКаприо</button>
-            <button class="chip-item" data-query="Побег из Шоушенка">⭐ Побег из Шоушенка</button>
+            <button class="chip-item" data-query="комедии с Джимом Керри">🎭 Комедии с Керри</button>
+            <button class="chip-item" data-query="триллеры про космос">🌌 Триллеры про космос</button>
           </div>
         </div>
 
@@ -98,8 +98,24 @@
           <div class="loader-spinner"></div>
           <i data-lucide="film" class="loader-film-icon"></i>
         </div>
-        <h3 id="loading-title">Ищем фильм в базе Кинопоиска...</h3>
-        <p id="loading-desc">Загружаем официальный постер, рейтинги, сюжет и список актеров</p>
+        <h3 id="loading-title">Ищем в базе Кинопоиска...</h3>
+        <p id="loading-desc">Формируем список фильмов, постеры и информацию</p>
+      </section>
+
+      <!-- 📋 Collection / Multi-Movie List Section -->
+      <section class="collection-section" id="collection-section" style="display: none;">
+        <div class="collection-header">
+          <div class="collection-title-box">
+            <h2 class="collection-title" id="collection-title">Подборка фильмов</h2>
+            <span class="collection-count" id="collection-count">10 фильмов</span>
+          </div>
+          <button id="btn-back-from-collection" class="btn-action-secondary">
+            <i data-lucide="arrow-left"></i> Новый поиск
+          </button>
+        </div>
+        <div class="collection-grid" id="collection-grid">
+          <!-- Dynamic Collection Cards -->
+        </div>
       </section>
 
       <!-- Movie Card Details Section -->
@@ -110,7 +126,7 @@
           <img id="movie-backdrop" src="" alt="Backdrop" class="movie-backdrop-img">
           <div class="backdrop-gradient-overlay"></div>
           <button id="btn-back-to-search" class="btn-back-floating">
-            <i data-lucide="arrow-left"></i> Новый поиск
+            <i data-lucide="arrow-left"></i> <span id="back-btn-label">Новый поиск</span>
           </button>
         </div>
 
@@ -134,10 +150,12 @@
               <div class="rating-badge kp-badge">
                 <span class="rating-source">Кинопоиск</span>
                 <span class="rating-value" id="movie-kp-rating">8.5</span>
+                <span class="rating-votes" id="movie-kp-votes"></span>
               </div>
               <div class="rating-badge imdb-badge">
                 <span class="rating-source">IMDb</span>
                 <span class="rating-value" id="movie-imdb-rating">8.7</span>
+                <span class="rating-votes" id="movie-imdb-votes"></span>
               </div>
             </div>
 
@@ -149,7 +167,7 @@
               <span class="meta-pill age-pill" id="movie-age">16+</span>
             </div>
 
-            <!-- Director -->
+            <!-- Director & Composer -->
             <div class="director-row" id="director-row">
               <span class="director-label">Режиссер:</span>
               <span class="director-name" id="movie-director">Кристофер Нолан</span>
@@ -163,8 +181,8 @@
 
             <!-- Action Buttons -->
             <div class="movie-actions-row">
-              <button id="btn-open-trailer" class="btn-action-primary">
-                <i data-lucide="play"></i> Смотреть трейлер
+              <button id="btn-scroll-to-trailer" class="btn-action-primary">
+                <i data-lucide="play"></i> Трейлер
               </button>
               <button id="btn-toggle-favorite" class="btn-action-secondary">
                 <i data-lucide="bookmark" id="favorite-icon"></i>
@@ -177,10 +195,62 @@
           </div>
         </div>
 
+        <!-- 🎥 POINT 8: Embedded Trailer Player Panel -->
+        <div class="movie-card-panel" id="trailer-panel">
+          <h2 class="panel-section-title"><i data-lucide="film"></i> Официальный трейлер</h2>
+          <div class="trailer-wrapper" id="trailer-wrapper">
+            <div class="trailer-embed-container" id="trailer-embed-container">
+              <iframe id="trailer-iframe" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+            <button id="btn-open-yt-external" class="btn-trailer-external">
+              <i data-lucide="youtube"></i> Открыть трейлер на YouTube
+            </button>
+          </div>
+        </div>
+
+        <!-- 💰 POINT 1: Box Office & Budget Panel -->
+        <div class="movie-card-panel" id="box-office-panel" style="display: none;">
+          <h2 class="panel-section-title"><i data-lucide="dollar-sign"></i> Бюджет и кассовые сборы</h2>
+          <div class="finance-cards-grid" id="finance-cards-grid">
+            <div class="finance-card" id="card-budget" style="display: none;">
+              <span class="finance-label">Бюджет</span>
+              <span class="finance-value" id="val-budget">$165 000 000</span>
+            </div>
+            <div class="finance-card highlight" id="card-world" style="display: none;">
+              <span class="finance-label">Сборы в мире</span>
+              <span class="finance-value" id="val-world">$773 889 028</span>
+            </div>
+            <div class="finance-card" id="card-rus" style="display: none;">
+              <span class="finance-label">Сборы в России</span>
+              <span class="finance-value" id="val-rus">$26 192 066</span>
+            </div>
+            <div class="finance-card" id="card-usa" style="display: none;">
+              <span class="finance-label">Сборы в США</span>
+              <span class="finance-value" id="val-usa">$203 227 580</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Movie Storyline Overview -->
         <div class="movie-card-panel">
           <h2 class="panel-section-title"><i data-lucide="align-left"></i> О чем фильм</h2>
           <p class="movie-overview-text" id="movie-overview">Описание сюжета фильма...</p>
+        </div>
+
+        <!-- 📸 POINT 2: Movie Stills Gallery -->
+        <div class="movie-card-panel" id="stills-panel" style="display: none;">
+          <h2 class="panel-section-title"><i data-lucide="camera"></i> Кадры из фильма</h2>
+          <div class="stills-gallery-scroll" id="stills-gallery-scroll">
+            <!-- Dynamic HD Stills -->
+          </div>
+        </div>
+
+        <!-- 🔗 POINT 4: Sequels, Prequels & Franchise -->
+        <div class="movie-card-panel" id="franchise-panel" style="display: none;">
+          <h2 class="panel-section-title"><i data-lucide="layers"></i> Все части франшизы и сиквелы</h2>
+          <div class="franchise-scroll" id="franchise-scroll">
+            <!-- Dynamic Franchise Cards -->
+          </div>
         </div>
 
         <!-- Cast & Actors -->
@@ -214,6 +284,14 @@
       </section>
 
     </main>
+
+    <!-- Modal: Lightbox for Fullscreen Stills -->
+    <div class="modal-overlay" id="modal-lightbox">
+      <div class="lightbox-container">
+        <button class="btn-close-lightbox" id="btn-close-lightbox"><i data-lucide="x"></i></button>
+        <img src="" alt="Still Fullscreen" id="lightbox-img" class="lightbox-img">
+      </div>
+    </div>
 
     <!-- Modal: Favorites -->
     <div class="modal-overlay" id="modal-favorites">
@@ -258,7 +336,7 @@
           <div class="form-group">
             <label>Kinopoisk API Key:</label>
             <input type="text" id="input-kp-key" placeholder="8c8e1a50-6322-4135-8875-5d40a5420d86">
-            <small>Используется для получения официальных постеров, сюжетов и фото актеров.</small>
+            <small>Используется для получения постеров, списков фильмов, кадров и сборов.</small>
           </div>
           <div class="form-group">
             <label>Google Gemini API Key:</label>
@@ -300,6 +378,6 @@
 
   </div>
 
-  <script src="/app.js?v=25"></script>
+  <script src="/app.js?v=35"></script>
 </body>
 </html>

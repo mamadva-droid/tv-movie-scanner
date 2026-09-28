@@ -1,6 +1,8 @@
-// КиноГид AI — Voice & Text Movie Guide Application
+// КиноГид AI — Ultimate Movie Encyclopedia Application
 
 let currentMovieData = null;
+let currentCollectionData = null;
+let isFromCollection = false;
 let speechRecognition = null;
 let isListening = false;
 let abortController = null;
@@ -13,6 +15,13 @@ const loadingTitle = document.getElementById('loading-title');
 const loadingDesc = document.getElementById('loading-desc');
 const movieDetailsSection = document.getElementById('movie-details-section');
 
+// Collection Elements
+const collectionSection = document.getElementById('collection-section');
+const collectionTitle = document.getElementById('collection-title');
+const collectionCount = document.getElementById('collection-count');
+const collectionGrid = document.getElementById('collection-grid');
+const btnBackFromCollection = document.getElementById('btn-back-from-collection');
+
 // Search & Voice Controls
 const movieSearchInput = document.getElementById('movie-search-input');
 const btnClearInput = document.getElementById('btn-clear-input');
@@ -20,6 +29,7 @@ const btnSubmitSearch = document.getElementById('btn-submit-search');
 const btnVoiceSearch = document.getElementById('btn-voice-search');
 const voiceStatusText = document.getElementById('voice-status-text');
 const btnBackToSearch = document.getElementById('btn-back-to-search');
+const backBtnLabel = document.getElementById('back-btn-label');
 
 // Movie Details Elements
 const movieBackdrop = document.getElementById('movie-backdrop');
@@ -30,7 +40,9 @@ const movieType = document.getElementById('movie-type');
 const movieTitle = document.getElementById('movie-title');
 const movieOrigTitle = document.getElementById('movie-orig-title');
 const movieKpRating = document.getElementById('movie-kp-rating');
+const movieKpVotes = document.getElementById('movie-kp-votes');
 const movieImdbRating = document.getElementById('movie-imdb-rating');
+const movieImdbVotes = document.getElementById('movie-imdb-votes');
 const movieYear = document.getElementById('movie-year');
 const movieDuration = document.getElementById('movie-duration');
 const movieCountry = document.getElementById('movie-country');
@@ -40,7 +52,36 @@ const movieGenres = document.getElementById('movie-genres');
 const movieOverview = document.getElementById('movie-overview');
 const movieCastGrid = document.getElementById('movie-cast-grid');
 const movieFactsList = document.getElementById('movie-facts-list');
-const btnOpenTrailer = document.getElementById('btn-open-trailer');
+
+// Point 8: Trailer Elements
+const trailerPanel = document.getElementById('trailer-panel');
+const trailerIframe = document.getElementById('trailer-iframe');
+const btnScrollToTrailer = document.getElementById('btn-scroll-to-trailer');
+const btnOpenYtExternal = document.getElementById('btn-open-yt-external');
+
+// Point 1: Box Office Elements
+const boxOfficePanel = document.getElementById('box-office-panel');
+const cardBudget = document.getElementById('card-budget');
+const valBudget = document.getElementById('val-budget');
+const cardWorld = document.getElementById('card-world');
+const valWorld = document.getElementById('val-world');
+const cardRus = document.getElementById('card-rus');
+const valRus = document.getElementById('val-rus');
+const cardUsa = document.getElementById('card-usa');
+const valUsa = document.getElementById('val-usa');
+
+// Point 2: Stills Gallery Elements
+const stillsPanel = document.getElementById('stills-panel');
+const stillsGalleryScroll = document.getElementById('stills-gallery-scroll');
+const modalLightbox = document.getElementById('modal-lightbox');
+const lightboxImg = document.getElementById('lightbox-img');
+const btnCloseLightbox = document.getElementById('btn-close-lightbox');
+
+// Point 4: Franchise Elements
+const franchisePanel = document.getElementById('franchise-panel');
+const franchiseScroll = document.getElementById('franchise-scroll');
+
+// Actions
 const btnToggleFavorite = document.getElementById('btn-toggle-favorite');
 const favoriteIcon = document.getElementById('favorite-icon');
 const favoriteBtnText = document.getElementById('favorite-btn-text');
@@ -123,7 +164,7 @@ function initVoiceRecognition() {
   speechRecognition.onstart = () => {
     isListening = true;
     if (btnVoiceSearch) btnVoiceSearch.classList.add('listening');
-    if (voiceStatusText) voiceStatusText.textContent = '🎙️ Слушаю вас... Говорите название фильма';
+    if (voiceStatusText) voiceStatusText.style.display = 'flex';
   };
 
   speechRecognition.onresult = (event) => {
@@ -165,7 +206,6 @@ function startVoiceListening() {
     return;
   }
   try {
-    if (voiceStatusText) voiceStatusText.style.display = 'flex';
     speechRecognition.start();
   } catch (e) {
     speechRecognition.stop();
@@ -181,15 +221,16 @@ function stopVoiceListening() {
 // Event Listeners
 function initEventListeners() {
   // Home Click
-  if (btnHome) {
-    btnHome.addEventListener('click', () => {
-      showSearchView();
-    });
-  }
+  if (btnHome) btnHome.addEventListener('click', showSearchView);
+  if (btnBackFromCollection) btnBackFromCollection.addEventListener('click', showSearchView);
 
   if (btnBackToSearch) {
     btnBackToSearch.addEventListener('click', () => {
-      showSearchView();
+      if (isFromCollection && currentCollectionData) {
+        showCollectionView(currentCollectionData);
+      } else {
+        showSearchView();
+      }
     });
   }
 
@@ -236,7 +277,7 @@ function initEventListeners() {
     btnSubmitSearch.addEventListener('click', () => {
       const q = movieSearchInput ? movieSearchInput.value.trim() : '';
       if (q) executeSmartSearch(q);
-      else showToast('Введите название фильма или имя актера');
+      else showToast('Введите название фильма, актера или тему');
     });
   }
 
@@ -255,10 +296,18 @@ function initEventListeners() {
   });
 
   // Action Buttons
-  if (btnOpenTrailer) {
-    btnOpenTrailer.addEventListener('click', () => {
+  if (btnScrollToTrailer) {
+    btnScrollToTrailer.addEventListener('click', () => {
+      if (trailerPanel) {
+        trailerPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
+
+  if (btnOpenYtExternal) {
+    btnOpenYtExternal.addEventListener('click', () => {
       if (!currentMovieData) return;
-      const q = encodeURIComponent(currentMovieData.trailerQuery || `${currentMovieData.title} трейлер`);
+      const q = encodeURIComponent(currentMovieData.trailer?.searchQuery || `${currentMovieData.title} ${currentMovieData.releaseYear} трейлер`);
       window.open(`https://www.youtube.com/results?search_query=${q}`, '_blank');
     });
   }
@@ -280,6 +329,14 @@ function initEventListeners() {
         navigator.clipboard.writeText(`${currentMovieData.title} (${currentMovieData.releaseYear})`);
         showToast('Название фильма скопировано!');
       }
+    });
+  }
+
+  // Lightbox Close
+  if (btnCloseLightbox && modalLightbox) {
+    btnCloseLightbox.addEventListener('click', () => modalLightbox.classList.remove('open'));
+    modalLightbox.addEventListener('click', (e) => {
+      if (e.target === modalLightbox) modalLightbox.classList.remove('open');
     });
   }
 
@@ -337,7 +394,7 @@ function initEventListeners() {
   // Escape key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      [modalFavorites, modalHistory, modalSettings, modalActor].forEach(m => {
+      [modalFavorites, modalHistory, modalSettings, modalActor, modalLightbox].forEach(m => {
         if (m) m.classList.remove('open');
       });
     }
@@ -346,25 +403,48 @@ function initEventListeners() {
 
 // Show / Hide Views
 function showSearchView() {
+  isFromCollection = false;
   if (heroSection) heroSection.style.display = 'flex';
   if (loadingSection) loadingSection.style.display = 'none';
+  if (collectionSection) collectionSection.style.display = 'none';
   if (movieDetailsSection) movieDetailsSection.style.display = 'none';
+  if (trailerIframe) trailerIframe.src = '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  initIcons();
 }
 
 function showLoadingView(title, desc) {
   if (heroSection) heroSection.style.display = 'none';
-  if (loadingSection) loadingSection.style.display = 'flex';
+  if (collectionSection) collectionSection.style.display = 'none';
   if (movieDetailsSection) movieDetailsSection.style.display = 'none';
+  if (loadingSection) loadingSection.style.display = 'flex';
   if (loadingTitle) loadingTitle.textContent = title || 'Ищем фильм...';
-  if (loadingDesc) loadingDesc.textContent = desc || 'Загрузка официальных постеров, рейтингов и актеров';
+  if (loadingDesc) loadingDesc.textContent = desc || 'Загрузка официальных постеров, кадров и трейлера';
   initIcons();
 }
 
-function showDetailsView() {
+function showCollectionView(data) {
   if (heroSection) heroSection.style.display = 'none';
   if (loadingSection) loadingSection.style.display = 'none';
+  if (movieDetailsSection) movieDetailsSection.style.display = 'none';
+  if (trailerIframe) trailerIframe.src = '';
+  
+  renderCollectionView(data);
+  if (collectionSection) collectionSection.style.display = 'flex';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  initIcons();
+}
+
+function showDetailsView(fromCollection = false) {
+  isFromCollection = fromCollection;
+  if (heroSection) heroSection.style.display = 'none';
+  if (loadingSection) loadingSection.style.display = 'none';
+  if (collectionSection) collectionSection.style.display = 'none';
   if (movieDetailsSection) movieDetailsSection.style.display = 'flex';
+  
+  if (backBtnLabel) {
+    backBtnLabel.textContent = isFromCollection ? 'Назад к подборке' : 'Новый поиск';
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
   initIcons();
 }
@@ -376,7 +456,7 @@ async function executeSmartSearch(query) {
   if (abortController) abortController.abort();
   abortController = new AbortController();
 
-  showLoadingView(`Ищем: «${query}»`, 'Поиск по базе Кинопоиска, загрузка постеров и актерского состава...');
+  showLoadingView(`Ищем: «${query}»`, 'Поиск по базе Кинопоиска, формируем подборку и постеры...');
 
   try {
     const geminiKey = localStorage.getItem('gemini_api_key') || '';
@@ -386,13 +466,21 @@ async function executeSmartSearch(query) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || 'Фильм не найден. Попробуйте уточнить название.');
+      throw new Error(data.error || 'Ничего не найдено. Попробуйте уточнить запрос.');
     }
 
-    currentMovieData = data;
-    saveToHistory(query, data);
-    renderMovieDetails(data);
-    showDetailsView();
+    if (data.isList) {
+      currentCollectionData = data;
+      isFromCollection = false;
+      saveToHistory(query, { title: data.collectionTitle || query, releaseYear: `Подборка (${data.total || data.items?.length || 0})` });
+      showCollectionView(data);
+    } else {
+      currentMovieData = data;
+      isFromCollection = false;
+      saveToHistory(query, data);
+      renderMovieDetails(data);
+      showDetailsView(false);
+    }
 
   } catch (err) {
     if (err.name === 'AbortError') return;
@@ -400,6 +488,120 @@ async function executeSmartSearch(query) {
     showToast(err.message || 'Ошибка поиска. Попробуйте еще раз.', 4000);
     showSearchView();
   }
+}
+
+// Fetch Full Movie Details by Kinopoisk Film ID
+async function fetchMovieDetailsById(filmId) {
+  if (!filmId) return;
+
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+
+  showLoadingView('Загружаем фильм...', 'Загрузка полного досье, кадров, сборов и трейлера...');
+
+  try {
+    const geminiKey = localStorage.getItem('gemini_api_key') || '';
+    const detailsUrl = `/api/movie-details?id=${encodeURIComponent(filmId)}&clientApiKey=${encodeURIComponent(geminiKey)}`;
+
+    const response = await fetch(detailsUrl, { signal: abortController.signal });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Не удалось загрузить данные о фильме.');
+    }
+
+    currentMovieData = data;
+    saveToHistory(data.title, data);
+    renderMovieDetails(data);
+    showDetailsView(true);
+
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.error('Details fetch error:', err);
+    showToast(err.message || 'Ошибка загрузки карточки фильма.', 4000);
+    if (currentCollectionData) {
+      showCollectionView(currentCollectionData);
+    } else {
+      showSearchView();
+    }
+  }
+}
+
+// Render Collection Grid
+function renderCollectionView(data) {
+  if (!data || !collectionGrid) return;
+
+  if (collectionTitle) collectionTitle.textContent = data.collectionTitle || 'Подборка фильмов';
+  const totalCount = data.total || data.items?.length || 0;
+  if (collectionCount) collectionCount.textContent = `${totalCount} ${pluralizeMovies(totalCount)}`;
+
+  collectionGrid.innerHTML = '';
+  const items = data.items || [];
+
+  if (items.length === 0) {
+    collectionGrid.innerHTML = `
+      <div class="empty-state">
+        <i data-lucide="film"></i>
+        <p>По вашему запросу фильмов не найдено.<br>Попробуйте другой запрос или название.</p>
+      </div>
+    `;
+    initIcons();
+    return;
+  }
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'collection-card';
+
+    const ratingVal = item.rating ? Number(item.rating).toFixed(1) : null;
+    const ratingHtml = ratingVal && ratingVal !== '0.0' && ratingVal !== 'NaN'
+      ? `<div class="collection-rating-badge"><i data-lucide="star"></i> ${ratingVal}</div>`
+      : '';
+
+    const posterHtml = item.posterPath
+      ? `<img src="${item.posterPath}" alt="${item.title}" class="collection-card-poster" loading="lazy" onerror="this.outerHTML='<div class=\\'collection-card-poster poster-fallback\\'>🎬</div>'">`
+      : `<div class="collection-card-poster poster-fallback">🎬</div>`;
+
+    const metaParts = [];
+    if (item.year) metaParts.push(item.year);
+    if (item.countries && item.countries.length > 0) metaParts.push(item.countries.join(', '));
+    if (item.genres && item.genres.length > 0) metaParts.push(item.genres.join(', '));
+    const metaString = metaParts.join(' • ');
+
+    card.innerHTML = `
+      <div class="collection-poster-wrap">
+        ${posterHtml}
+        ${ratingHtml}
+      </div>
+      <div class="collection-card-info">
+        <h3 class="collection-card-title">${item.title}</h3>
+        ${item.originalTitle ? `<div class="collection-card-orig">${item.originalTitle}</div>` : ''}
+        <div class="collection-card-meta">${metaString}</div>
+        ${item.description ? `<p class="collection-card-desc">${item.description}</p>` : ''}
+      </div>
+    `;
+
+    card.addEventListener('click', () => {
+      if (item.id) {
+        fetchMovieDetailsById(item.id);
+      } else {
+        executeSmartSearch(item.title);
+      }
+    });
+
+    collectionGrid.appendChild(card);
+  });
+
+  initIcons();
+}
+
+function pluralizeMovies(n) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 19) return 'фильмов';
+  if (mod10 === 1) return 'фильм';
+  if (mod10 >= 2 && mod10 <= 4) return 'фильма';
+  return 'фильмов';
 }
 
 // Render Movie Dossier
@@ -416,6 +618,8 @@ function renderMovieDetails(movie) {
   const imdb = (movie.ratings && movie.ratings.imdb) ? Number(movie.ratings.imdb).toFixed(1) : '—';
   if (movieKpRating) movieKpRating.textContent = kp;
   if (movieImdbRating) movieImdbRating.textContent = imdb;
+  if (movieKpVotes) movieKpVotes.textContent = movie.ratings?.kinopoiskVotes > 0 ? `(${formatVotes(movie.ratings.kinopoiskVotes)})` : '';
+  if (movieImdbVotes) movieImdbVotes.textContent = movie.ratings?.imdbVotes > 0 ? `(${formatVotes(movie.ratings.imdbVotes)})` : '';
 
   // Meta
   if (movieYear) movieYear.innerHTML = `<i data-lucide="calendar"></i> ${movie.releaseYear || '—'}`;
@@ -460,9 +664,104 @@ function renderMovieDetails(movie) {
     movieBackdrop.src = movie.backdropPath || movie.posterPath || '';
   }
 
+  // 🎥 POINT 8: Embedded Trailer
+  if (trailerIframe) {
+    if (movie.trailer && movie.trailer.embedUrl) {
+      trailerIframe.src = movie.trailer.embedUrl;
+      if (trailerPanel) trailerPanel.style.display = 'flex';
+    } else {
+      trailerIframe.src = '';
+      if (trailerPanel) trailerPanel.style.display = 'none';
+    }
+  }
+
+  // 💰 POINT 1: Box Office & Budget
+  if (boxOfficePanel) {
+    const box = movie.boxOffice || {};
+    let hasBox = false;
+
+    if (box.budget) {
+      valBudget.textContent = box.budget;
+      cardBudget.style.display = 'flex';
+      hasBox = true;
+    } else { cardBudget.style.display = 'none'; }
+
+    if (box.world) {
+      valWorld.textContent = box.world;
+      cardWorld.style.display = 'flex';
+      hasBox = true;
+    } else { cardWorld.style.display = 'none'; }
+
+    if (box.rus) {
+      valRus.textContent = box.rus;
+      cardRus.style.display = 'flex';
+      hasBox = true;
+    } else { cardRus.style.display = 'none'; }
+
+    if (box.usa) {
+      valUsa.textContent = box.usa;
+      cardUsa.style.display = 'flex';
+      hasBox = true;
+    } else { cardUsa.style.display = 'none'; }
+
+    boxOfficePanel.style.display = hasBox ? 'flex' : 'none';
+  }
+
   // Overview / Synopsis
   if (movieOverview) {
     movieOverview.textContent = movie.overview || 'Сюжетное описание формируется...';
+  }
+
+  // 📸 POINT 2: Movie Stills Gallery
+  if (stillsGalleryScroll) {
+    stillsGalleryScroll.innerHTML = '';
+    const stills = movie.stills || [];
+    if (stills.length > 0) {
+      stillsPanel.style.display = 'flex';
+      stills.forEach(url => {
+        const item = document.createElement('div');
+        item.className = 'still-item-card';
+        item.innerHTML = `<img src="${url}" alt="Кадр из фильма" class="still-item-img" loading="lazy">`;
+        item.addEventListener('click', () => openLightbox(url));
+        stillsGalleryScroll.appendChild(item);
+      });
+    } else {
+      stillsPanel.style.display = 'none';
+    }
+  }
+
+  // 🔗 POINT 4: Sequels & Franchise
+  if (franchiseScroll) {
+    franchiseScroll.innerHTML = '';
+    const franchise = movie.franchise || [];
+    if (franchise.length > 0) {
+      franchisePanel.style.display = 'flex';
+      franchise.forEach(part => {
+        const card = document.createElement('div');
+        card.className = 'franchise-card';
+        const posterHtml = part.posterPath
+          ? `<img src="${part.posterPath}" alt="${part.title}" class="franchise-poster-img" loading="lazy">`
+          : `<div class="actor-placeholder">🎬</div>`;
+
+        card.innerHTML = `
+          <div class="franchise-poster-box">${posterHtml}</div>
+          <div class="franchise-info">
+            <span class="franchise-title" title="${part.title}">${part.title}</span>
+            <span class="franchise-year">${part.year || ''}</span>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          if (part.id) {
+            fetchMovieDetailsById(part.id);
+          } else {
+            executeSmartSearch(part.title);
+          }
+        });
+        franchiseScroll.appendChild(card);
+      });
+    } else {
+      franchisePanel.style.display = 'none';
+    }
   }
 
   // Cast List
@@ -512,6 +811,21 @@ function renderMovieDetails(movie) {
   }
 
   updateFavoriteButtonState();
+  initIcons();
+}
+
+function formatVotes(count) {
+  if (!count) return '';
+  if (count >= 1000000) return `${(count / 1000000).toFixed(1)} млн`;
+  if (count >= 1000) return `${(count / 1000).toFixed(0)} тыс`;
+  return `${count}`;
+}
+
+// Lightbox for Stills
+function openLightbox(url) {
+  if (!lightboxImg || !modalLightbox) return;
+  lightboxImg.src = url;
+  modalLightbox.classList.add('open');
   initIcons();
 }
 
